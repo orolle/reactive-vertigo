@@ -1,5 +1,7 @@
 package rvertigo.verticle;
 
+import com.aol.simple.react.stream.lazy.LazyReact;
+import com.aol.simple.react.stream.traits.LazyFutureStream;
 import io.vertx.core.Vertx;
 
 import java.io.Serializable;
@@ -17,13 +19,14 @@ import rvertigo.verticle.dht.DhtNode;
 
 public class ReactiveVertigo {
   protected final DhtNode<String> node;
+  //protected DhtNode<LazyReact> noder;
   protected final Vertx vertx;
 
   private static final Random rand = new Random(10);
 
   public ReactiveVertigo(Vertx vertx) {
     this.vertx = vertx;
-    this.node = new DhtNode<String>(vertx, "DhtNode", random());
+    this.node = new DhtNode<>(vertx, "DhtNode", random());
   }
 
   public ReactiveVertigo onJoined(RConsumer<ReactiveVertigo> f) {
@@ -32,7 +35,7 @@ public class ReactiveVertigo {
   }
 
   public <R extends Serializable> void traverse(Integer start, Integer end, R identity,
-    AsyncFunction<Pair<ReactiveLambda<Void, DhtNode<String>, R>, DhtNode<String>>, R> f,
+    AsyncFunction<ReactiveLambda<DhtNode<String>, DhtNode<String>, R>, R> f,
     RConsumer<R> handler) {
     this.node.traverse(start, end, identity, f, handler);
   }

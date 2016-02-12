@@ -1,23 +1,30 @@
 package rvertigo.main;
 
+import java.util.Date;
+import java.util.UUID;
+
+import com.aol.simple.react.stream.lazy.LazyReact;
+
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.json.JsonObject;
-
-import java.util.Date;
-import java.util.UUID;
-
+import java.io.Serializable;
 import rvertigo.function.RConsumer;
+import rvertigo.simplereact.VertxExecutor;
+import rvertigo.simplereact.VertxReact;
 import rvertigo.verticle.ReactiveVertigo;
 import rvertigo.verticle.dht.DhtNode;
+import java.util.function.Function;
+import java.util.function.Consumer;
 
 public class Starter extends AbstractVerticle {
 
   @Override
   public void start() throws Exception {
     super.start();
+      System.out.println("SERIALIZED FUNCTION PoC");
 
     // setup 3 nodes in DHT "cluster"
     // (these nodes are all on the same machine)
@@ -32,10 +39,14 @@ public class Starter extends AbstractVerticle {
         });
       });
     });
+
+    LazyReact react = new LazyReact(new VertxExecutor(getVertx())).withAsync(false);
+    int number = react.of(1, 2, 3).map(i -> i + 1).reduce((a,b) -> a + b).orElse(Integer.MIN_VALUE);
+    System.out.println("sum = " + number); // 2 + 3 + 4 = 9
   }
 
+  // Store key-value pairs
   private void testFunctionality(ReactiveVertigo react) {
-    // Store key-value pairs
     System.out.println("# Store 2 key-value pair in cluster");
     react.put(Integer.MIN_VALUE / 2, "Hello World! 1", result1 -> {
       System.out.println(" [" + Integer.toHexString(Integer.MIN_VALUE / 2) + ",Hello World! 1" + "]");
@@ -48,9 +59,8 @@ public class Starter extends AbstractVerticle {
 
         doRangeQuery(react, result -> {
           System.out.println(result.encodePrettily());
+          //doStreaming(react);
         });
-
-        doStreaming(react);
       });
     });
   }
@@ -65,8 +75,8 @@ public class Starter extends AbstractVerticle {
       result.mergeIn(msg.body());
     });
 
-    react.<Boolean> traverse(Integer.MIN_VALUE, Integer.MAX_VALUE, Boolean.TRUE, (pair, v2) -> {
-      DhtNode<String> node = pair.getValue1();
+    react.<Boolean>traverse(Integer.MIN_VALUE, Integer.MAX_VALUE, Boolean.TRUE, (pair, v2) -> {
+      DhtNode<String> node = pair.context();
       JsonObject o = new JsonObject();
       node.getValues().entrySet().forEach(e -> o.put(Integer.toHexString(e.getKey()) + "", e.getValue()));
       node.getVertx().eventBus().publish(uuid + ".data", o);
@@ -76,8 +86,10 @@ public class Starter extends AbstractVerticle {
     });
   }
 
-  private void doStreaming(ReactiveVertigo react) {
-    boolean isFirst[] = { true };
+  private void doStreaming(ReactiveVertigo react_old) {
+    boolean isFirst[] = {true};
+    VertxReact react = new VertxReact(vertx);
+
     vertx.setPeriodic(1000, h -> {
       if (isFirst[0]) {
         System.out.println("# Push events to streaming pipeline");
@@ -90,17 +102,28 @@ public class Starter extends AbstractVerticle {
     // Streaming pipeline is executed locally
     // the distributed version uses queues to distribute
     // data in the cluster
+    //vertx.executeBlocking(v -> {
     react.<String>fromEventbus("date").
-    map((str, cb) -> {
-        cb.accept(" now it is " + str);
-    }).
-      queue(). // Distribute events in the cluster
-    forEach(str -> {
-      System.out.println(str);
-    });
+      map((Serializable & Function<String, String>) (str) -> {
+        return (" now it is " + str);
+      }).
+      forEach((Serializable & Consumer<String>) (str) -> {
+        System.out.println(str);
+      }).
+      run(react);
+
+    //}, null);
   }
 
   public static void main(String[] args) {
     Vertx.vertx().deployVerticle(Starter.class.getCanonicalName());
+    // react.async.Queue;
+    
+    Vertx.vertx().setTimer(30000, s -> {
+        System.err.println("STOP JAVA PROCESS");
+        System.err.println("  Starter.java  ");
+        System.err.println("CLEANUP VERTX RESSOURCES");
+        System.exit(-1);
+    });
   }
 }

@@ -29,7 +29,7 @@ public class DhtNode<T extends Serializable> {
   }
 
   public DhtNode<T> join(RConsumer<DhtNode<T>> joined) {
-    new Bootstrap<T>(this).
+    new Bootstrap<>(this).
       onSuccess(nextHash -> this.nextHash = nextHash).
       onSuccess(nextHash -> onBootstraped()).
       onSuccess(nextHash -> joined.accept(this)).
@@ -60,33 +60,30 @@ public class DhtNode<T extends Serializable> {
   }
 
   protected void processManagementMessage(Message<byte[]> msg) {
-    ReactiveLambda<DhtNode<T>, Message<byte[]>, Void> l = new ReactiveLambda<>(msg.body());
-    l.context(this);
+    ReactiveLambda<Pair<DhtNode<T>, Message<byte[]>>, Message<byte[]>, Void> l = new ReactiveLambda<>(msg.body());
+    l.context(new Pair<>(this, msg));
     l.onNext(msg);
   }
 
   public <R extends Serializable> void traverse(Integer start, Integer end, R identity,
-    AsyncFunction<Pair<ReactiveLambda<Void, DhtNode<T>, R>, DhtNode<T>>, R> f,
+    AsyncFunction<ReactiveLambda<DhtNode<T>, DhtNode<T>, R>, R> f,
     RConsumer<R> handler) {
     final Integer hash = myHash;
 
     byte[] ser = DHT.<T, R> managementMessage((pair, cb) -> {
-      ReactiveLambda<DhtNode<T>, Message<byte[]>, R> c = pair.getValue0();
-      Message<byte[]> msg = pair.getValue1();
+      ReactiveLambda<Pair<DhtNode<T>, Message<byte[]>>, Message<byte[]>, R> c = pair;
+      Message<byte[]> msg = pair.context().getValue1();
 
-      if ((!start.equals(end) && DHT.isResponsible(start, end, c.context().myHash)) ||
-        DHT.isResponsible(c.context(), start) || DHT.isResponsible(c.context(), end)) {
-        Pair<ReactiveLambda<Void, DhtNode<T>, R>, DhtNode<T>> p = new Pair<>(
-          new ReactiveLambda<Void, DhtNode<T>, R>(f),
-          pair.getValue0().context());
-        f.apply(p, (R result) -> {
+      if ((!start.equals(end) && DHT.isResponsible(start, end, c.context().getValue0().myHash)) ||
+        DHT.isResponsible(c.context().getValue0(), start) || DHT.isResponsible(c.context().getValue0(), end)) {
+        f.apply(new ReactiveLambda<>(f).context(c.context().getValue0()), (R result) -> {
           msg.reply(result);
-          });
+        });
       }
 
-      if (!hash.equals(c.context().myHash)) {
-        String addr = DHT.toAddress(c.context().prefix, c.context().nextHash);
-        c.context().vertx.eventBus().send(addr, c.serialize(), ar -> {
+      if (!hash.equals(c.context().getValue0().myHash)) {
+        String addr = DHT.toAddress(c.context().getValue0().prefix, c.context().getValue0().nextHash);
+        c.context().getValue0().vertx.eventBus().send(addr, c.serialize(), ar -> {
           if (ar.succeeded()) {
             msg.reply(ar.result().body());
           } else {
@@ -110,14 +107,14 @@ public class DhtNode<T extends Serializable> {
 
   public void put(Integer key, T value, RConsumer<Boolean> callback) {
     traverse(key, key, Boolean.TRUE, (pair, v2) -> {
-      pair.getValue1().getValues().put(key, value);
+      pair.context().getValues().put(key, value);
       v2.accept(true);
     }, callback);
   }
 
   public void get(Integer key, RConsumer<T> callback) {
     traverse(key, key, null, (pair, cb) -> {
-      T data = pair.getValue1().getValues().get(key);
+      T data = pair.context().getValues().get(key);
       cb.accept(data);
     }, callback);
   }

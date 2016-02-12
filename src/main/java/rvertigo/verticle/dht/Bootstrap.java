@@ -26,14 +26,14 @@ public class Bootstrap<T extends Serializable> {
     final Integer hash = node.myHash;
 
     byte[] ser = DHT.managementMessage((pair, cb) -> {
-      DhtNode<?> context = (DhtNode<?>) pair.getValue0().context();
-      Message<byte[]> msg = pair.getValue1();
+      DhtNode<?> context = (DhtNode<?>) pair.context().getValue0();
+      Message<byte[]> msg = pair.context().getValue1();
 
       if (DHT.isResponsible(context, hash)) {
         msg.reply(context.nextHash);
         context.nextHash = hash;
       } else {
-        context.vertx.eventBus().send(DHT.toAddress(context.prefix, context.nextHash), pair.getValue0().serialize(),
+        context.vertx.eventBus().send(DHT.toAddress(context.prefix, context.nextHash), msg.body(),
           ar -> {
             if (ar.succeeded()) {
               msg.reply(ar.result().body());

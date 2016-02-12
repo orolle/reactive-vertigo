@@ -35,7 +35,7 @@ public interface DHT {
   }
 
   public static <T extends Serializable, R extends Serializable> byte[] managementMessage(
-    AsyncFunction<Pair<ReactiveLambda<DhtNode<T>, Message<byte[]>, R>, Message<byte[]>>, R> f) {
+    AsyncFunction<ReactiveLambda<Pair<DhtNode<T>, Message<byte[]>>, Message<byte[]>, R>, R> f) {
     return Serializer.serialize(f);
   }
 }

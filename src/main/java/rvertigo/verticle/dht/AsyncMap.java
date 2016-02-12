@@ -10,7 +10,7 @@ import java.util.TreeMap;
 
 import org.javatuples.Pair;
 
-public class AsyncMap<K extends Comparable<K>, V extends Serializable> implements Serializable {
+public class AsyncMap<K extends Serializable & Comparable<K>, V extends Serializable> implements Serializable {
   private static final long serialVersionUID = 6604642087431893642L;
   protected transient final DhtNode<V> node;
 

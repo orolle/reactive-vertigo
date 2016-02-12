@@ -5,7 +5,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.javatuples.Pair;
 import org.reactivestreams.Processor;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
@@ -19,9 +18,9 @@ public class ReactiveLambda<C, T, R> implements Processor<T, R>, Serializable {
   private transient List<Subscriber<? super R>> subscribers;
 
   private transient C contex;
-  private transient AsyncFunction<Pair<ReactiveLambda<C, T, R>, T>, R> function;
+  private transient AsyncFunction<ReactiveLambda<C, T, R>, R> function;
 
-  public ReactiveLambda(AsyncFunction<Pair<ReactiveLambda<C, T, R>, T>, R> f) {
+  public ReactiveLambda(AsyncFunction<ReactiveLambda<C, T, R>, R> f) {
     this(Serializer.serialize(f));
   }
 
@@ -69,9 +68,8 @@ public class ReactiveLambda<C, T, R> implements Processor<T, R>, Serializable {
   @Override
   public void onNext(T t) {
     init();
-
-    Pair<ReactiveLambda<C, T, R>, T> pair = new Pair<ReactiveLambda<C, T, R>, T>(this, t);
-    function.apply(pair, handleResult);
+    
+    function.apply(this, handleResult);
   }
 
   @Override
