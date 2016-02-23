@@ -98,6 +98,7 @@ public class ReactPipeline<U> implements Serializable {
       final Queue<U> queue = new Queue<>();
       
       vr.vertx.eventBus().<U>consumer(addr).handler((Message<U> msg) -> {
+          System.out.println(msg.body());
         queue.add(msg.body());
       });
       

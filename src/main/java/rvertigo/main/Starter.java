@@ -59,7 +59,7 @@ public class Starter extends AbstractVerticle {
 
         doRangeQuery(react, result -> {
           System.out.println(result.encodePrettily());
-          //doStreaming(react);
+          doStreaming(react);
         });
       });
     });
