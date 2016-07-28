@@ -1,17 +1,14 @@
 package rvertigo.stream;
 
 import io.vertx.core.Vertx;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
-
 import org.reactivestreams.Processor;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
-
 import rvertigo.function.AsyncFunction;
 import rvertigo.function.RConsumer;
 

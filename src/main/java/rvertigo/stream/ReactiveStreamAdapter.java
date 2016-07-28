@@ -20,7 +20,6 @@ import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
-
 import rvertigo.function.AsyncFunction;
 
 public class ReactiveStreamAdapter<T> implements ReactiveStream<T> {

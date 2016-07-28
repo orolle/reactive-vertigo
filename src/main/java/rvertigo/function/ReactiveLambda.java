@@ -4,7 +4,6 @@ package rvertigo.function;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.reactivestreams.Processor;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;

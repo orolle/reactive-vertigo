@@ -2,7 +2,6 @@ package rvertigo.stream;
 
 import java.util.function.Function;
 import java.util.stream.Stream;
-
 import rvertigo.function.AsyncFunction;
 
 public interface ReactiveStream<T> extends Stream<T> {

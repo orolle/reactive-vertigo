@@ -3,7 +3,6 @@ package rvertigo.verticle.dht;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.Message;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;

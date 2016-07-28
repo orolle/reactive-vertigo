@@ -1,23 +1,21 @@
 package rvertigo.main;
 
-import java.util.Date;
-import java.util.UUID;
-
 import com.aol.simple.react.stream.lazy.LazyReact;
-
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.json.JsonObject;
 import java.io.Serializable;
+import java.util.Date;
+import java.util.UUID;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import rvertigo.function.RConsumer;
 import rvertigo.simplereact.VertxExecutor;
 import rvertigo.simplereact.VertxReact;
 import rvertigo.verticle.ReactiveVertigo;
 import rvertigo.verticle.dht.DhtNode;
-import java.util.function.Function;
-import java.util.function.Consumer;
 
 public class Starter extends AbstractVerticle {
 
@@ -29,11 +27,11 @@ public class Starter extends AbstractVerticle {
     // setup 3 nodes in DHT "cluster"
     // (these nodes are all on the same machine)
     System.out.println("# Start 3 node DHT \"cluster\"");
-    new ReactiveVertigo(getVertx()).onJoined(r1 -> {
+    new ReactiveVertigo<String>(getVertx()).onJoined(r1 -> {
       System.out.println(" node 1 joined DHT");
-      new ReactiveVertigo(getVertx()).onJoined(r2 -> {
+      new ReactiveVertigo<String>(getVertx()).onJoined(r2 -> {
         System.out.println(" node 2 joined DHT");
-        new ReactiveVertigo(getVertx()).onJoined(r3 -> {
+        new ReactiveVertigo<String>(getVertx()).onJoined(r3 -> {
           System.out.println(" node 3 joined DHT");
           testFunctionality(r3);
         });
@@ -59,13 +57,13 @@ public class Starter extends AbstractVerticle {
 
         doRangeQuery(react, result -> {
           System.out.println(result.encodePrettily());
-          doStreaming(react);
+          System.exit(0);
         });
       });
     });
   }
 
-  public void doRangeQuery(ReactiveVertigo react, RConsumer<JsonObject> callback) {
+  public void doRangeQuery(ReactiveVertigo<String> react, RConsumer<JsonObject> callback) {
     System.out.println("# Execute range query on the key-value pairs");
 
     final String uuid = UUID.randomUUID().toString();
@@ -75,7 +73,7 @@ public class Starter extends AbstractVerticle {
       result.mergeIn(msg.body());
     });
 
-    react.<Boolean>traverse(Integer.MIN_VALUE, Integer.MAX_VALUE, Boolean.TRUE, (pair, v2) -> {
+    react.<Boolean> traverse(Integer.MIN_VALUE, Integer.MAX_VALUE, Boolean.TRUE, (pair, v2) -> {
       DhtNode<String> node = pair.context();
       JsonObject o = new JsonObject();
       node.getValues().entrySet().forEach(e -> o.put(Integer.toHexString(e.getKey()) + "", e.getValue()));
@@ -86,6 +84,8 @@ public class Starter extends AbstractVerticle {
     });
   }
 
+  /*
+   * Streaming out of scope
   private void doStreaming(ReactiveVertigo react_old) {
     boolean isFirst[] = {true};
     VertxReact react = new VertxReact(vertx);
@@ -99,6 +99,8 @@ public class Starter extends AbstractVerticle {
       vertx.eventBus().publish("date", new Date().toString());
     });
 
+    // Streaming out of scope
+    //
     // Streaming pipeline is executed locally
     // the distributed version uses queues to distribute
     // data in the cluster
@@ -111,9 +113,9 @@ public class Starter extends AbstractVerticle {
         System.out.println(str);
       }).
       run(react);
-
     //}, null);
   }
+  */
 
   public static void main(String[] args) {
     Vertx.vertx().deployVerticle(Starter.class.getCanonicalName());

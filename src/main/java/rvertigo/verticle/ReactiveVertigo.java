@@ -1,24 +1,21 @@
 package rvertigo.verticle;
 
-import com.aol.simple.react.stream.lazy.LazyReact;
-import com.aol.simple.react.stream.traits.LazyFutureStream;
 import io.vertx.core.Vertx;
-
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Random;
-
 import org.javatuples.Pair;
-
 import rvertigo.function.AsyncFunction;
 import rvertigo.function.RConsumer;
 import rvertigo.function.ReactiveLambda;
 import rvertigo.stream.ReactivePipeline;
 import rvertigo.stream.ReactiveStream;
 import rvertigo.verticle.dht.DhtNode;
+import rx.Observable;
 
-public class ReactiveVertigo {
-  protected final DhtNode<String> node;
+public class ReactiveVertigo<V extends Serializable> {
+  protected final DhtNode<V> node;
   //protected DhtNode<LazyReact> noder;
   protected final Vertx vertx;
 
@@ -26,7 +23,7 @@ public class ReactiveVertigo {
 
   public ReactiveVertigo(Vertx vertx) {
     this.vertx = vertx;
-    this.node = new DhtNode<>(vertx, "DhtNode", random());
+    this.node = new DhtNode<V>(vertx, "DhtNode", random());
   }
 
   public ReactiveVertigo onJoined(RConsumer<ReactiveVertigo> f) {
@@ -35,17 +32,21 @@ public class ReactiveVertigo {
   }
 
   public <R extends Serializable> void traverse(Integer start, Integer end, R identity,
-    AsyncFunction<ReactiveLambda<DhtNode<String>, DhtNode<String>, R>, R> f,
+  AsyncFunction<ReactiveLambda<DhtNode<V>, DhtNode<V>, R>, R> f,
     RConsumer<R> handler) {
     this.node.traverse(start, end, identity, f, handler);
   }
 
-  public void put(Integer key, String value, RConsumer<Boolean> callback) {
+  public void put(Integer key, V value, RConsumer<Boolean> callback) {
     this.node.put(key, value, callback);
   }
 
-  public void get(Integer key, RConsumer<String> callback) {
+  public void get(Integer key, RConsumer<V> callback) {
     this.node.get(key, callback);
+  }
+  
+  public Observable<Map.Entry<Integer, V>> rangeQuery(Integer from, Integer to) {
+    return this.node.doRangeQuery(from, to);
   }
 
   private Integer random() {

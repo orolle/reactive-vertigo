@@ -8,27 +8,12 @@ package rvertigo.simplereact;
 import com.aol.simple.react.collectors.lazy.LazyResultConsumer;
 import com.aol.simple.react.config.MaxActive;
 import com.aol.simple.react.stream.traits.BlockingStream;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
-
-
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.BinaryOperator;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import com.aol.simple.react.config.MaxActive;
-import com.aol.simple.react.stream.MissingValue;
-import com.aol.simple.react.stream.traits.BlockingStream;
 import com.aol.simple.react.stream.traits.ConfigurableStream;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 /**
  * This class allows a Batch of completable futures to be processed before collecting their results, to increase

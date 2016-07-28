@@ -1,8 +1,7 @@
 package rvertigo.simplereact;
 
-import io.vertx.core.Vertx;
-
 import com.aol.simple.react.stream.lazy.LazyReact;
+import io.vertx.core.Vertx;
 import java.io.Serializable;
 import java.util.concurrent.ForkJoinPool;
 
@@ -21,7 +20,10 @@ public class VertxReact {
     return this.react;
   }
   
+  /*
+   * Streaming out of scope
   public <R extends Serializable> ReactPipeline<R> fromEventbus(String address) {
     return new ReactPipeline<R>().fromEventbus(address);
   }
+  */
 }

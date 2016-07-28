@@ -1,8 +1,7 @@
 package rvertigo.simplereact;
 
-import java.util.concurrent.Executor;
-
 import io.vertx.core.Vertx;
+import java.util.concurrent.Executor;
 
 public class VertxExecutor implements Executor {
   protected final Vertx vertx;

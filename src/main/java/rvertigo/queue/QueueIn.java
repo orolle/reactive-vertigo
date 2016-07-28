@@ -1,11 +1,9 @@
 package rvertigo.queue;
 
 import io.vertx.core.Vertx;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.reactivestreams.Processor;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;

@@ -3,23 +3,29 @@ package rvertigo.verticle.dht;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.Message;
-
+import io.vertx.core.eventbus.MessageConsumer;
+import io.vertx.core.json.JsonObject;
 import java.io.Serializable;
-
+import java.util.AbstractMap;
+import java.util.Map;
+import java.util.UUID;
 import org.javatuples.Pair;
-
 import rvertigo.function.AsyncFunction;
 import rvertigo.function.RConsumer;
 import rvertigo.function.ReactiveLambda;
+import rvertigo.verticle.ReactiveVertigo;
+import rx.Observable;
+import rx.Observer;
+import rx.subjects.PublishSubject;
 
 public class DhtNode<T extends Serializable> {
+
   protected final Vertx vertx;
   protected final String prefix;
   protected final Integer myHash;
   protected Integer nextHash;
 
   protected AsyncMap<Integer, T> values = new AsyncMap<>(this);
-
 
   public DhtNode(Vertx vertx, String prefix, Integer myHash) {
     this.vertx = vertx;
@@ -70,12 +76,12 @@ public class DhtNode<T extends Serializable> {
     RConsumer<R> handler) {
     final Integer hash = myHash;
 
-    byte[] ser = DHT.<T, R> managementMessage((pair, cb) -> {
+    byte[] ser = DHT.<T, R>managementMessage((pair, cb) -> {
       ReactiveLambda<Pair<DhtNode<T>, Message<byte[]>>, Message<byte[]>, R> c = pair;
       Message<byte[]> msg = pair.context().getValue1();
 
-      if ((!start.equals(end) && DHT.isResponsible(start, end, c.context().getValue0().myHash)) ||
-        DHT.isResponsible(c.context().getValue0(), start) || DHT.isResponsible(c.context().getValue0(), end)) {
+      if ((!start.equals(end) && DHT.isResponsible(start, end, c.context().getValue0().myHash))
+        || DHT.isResponsible(c.context().getValue0(), start) || DHT.isResponsible(c.context().getValue0(), end)) {
         f.apply(new ReactiveLambda<>(f).context(c.context().getValue0()), (R result) -> {
           msg.reply(result);
         });
@@ -119,10 +125,38 @@ public class DhtNode<T extends Serializable> {
     }, callback);
   }
 
+  public Observable<Map.Entry<Integer, T>> doRangeQuery(Integer from, Integer to) {
+    PublishSubject<Map.Entry<Integer, T>> result = PublishSubject.<Map.Entry<Integer, T>>create();
+
+    final String address = UUID.randomUUID().toString() + ".data";
+
+    MessageConsumer<JsonObject> consumer = vertx.eventBus().consumer(address, (Message<JsonObject> msg) -> {
+      JsonObject o = msg.body();
+      result.onNext(new AbstractMap.SimpleEntry<>((Integer) o.getValue("k"), (T) o.getValue("v")));
+    });
+
+    traverse(from, to, Boolean.TRUE, (pair, v2) -> {
+      DhtNode<T> node = pair.context();
+      node.getValues().entrySet().stream().
+        filter(e -> DHT.isResponsible(from, to, e.getKey())).
+        forEach(e
+          -> node.getVertx().eventBus().publish(address,
+            new JsonObject().
+            put("k", e.getKey()).
+            put("v", e.getValue()))
+        );
+    }, reply -> {
+      consumer.unregister();
+      result.onCompleted();
+    });
+
+    return result;
+  }
+
   @Override
   public String toString() {
     return Integer.toHexString(this.getIdentity()) + ": ["
-      + Integer.toHexString(this.getIdentity()) + "-" +
-      Integer.toHexString(this.getNext()) + "]";
+      + Integer.toHexString(this.getIdentity()) + "-"
+      + Integer.toHexString(this.getNext()) + "]";
   }
 }

@@ -1,11 +1,8 @@
 package rvertigo.verticle.dht;
 
 import io.vertx.core.eventbus.Message;
-
 import java.io.Serializable;
-
 import org.javatuples.Pair;
-
 import rvertigo.function.AsyncFunction;
 import rvertigo.function.ReactiveLambda;
 import rvertigo.function.Serializer;
@@ -23,14 +20,14 @@ public interface DHT {
     return isResponsible(node.myHash, node.nextHash, hash);
   }
 
-  public static boolean isResponsible(Integer my, Integer next, Integer hash) {
+  public static boolean isResponsible(Integer rangeStart, Integer rangeEnd, Integer value) {
     // continued hash range
-    if (my < next) {
-      return my <= hash && next > hash;
+    if (rangeStart < rangeEnd) {
+      return rangeStart <= value && rangeEnd >= value;
     }
     // discontinued hash range
     else {
-      return my <= hash || next > hash;
+      return rangeStart <= value || rangeEnd >= value;
     }
   }
 
