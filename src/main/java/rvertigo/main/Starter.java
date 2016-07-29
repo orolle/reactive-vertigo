@@ -22,7 +22,7 @@ public class Starter extends AbstractVerticle {
   @Override
   public void start() throws Exception {
     super.start();
-      System.out.println("SERIALIZED FUNCTION PoC");
+    System.out.println("SERIALIZED FUNCTION PoC");
 
     // setup 3 nodes in DHT "cluster"
     // (these nodes are all on the same machine)
@@ -39,28 +39,27 @@ public class Starter extends AbstractVerticle {
     });
 
     LazyReact react = new LazyReact(new VertxExecutor(getVertx())).withAsync(false);
-    int number = react.of(1, 2, 3).map(i -> i + 1).reduce((a,b) -> a + b).orElse(Integer.MIN_VALUE);
+    int number = react.of(1, 2, 3).map(i -> i + 1).reduce((a, b) -> a + b).orElse(Integer.MIN_VALUE);
     System.out.println("sum = " + number); // 2 + 3 + 4 = 9
   }
 
   // Store key-value pairs
   private void testFunctionality(ReactiveVertigo react) {
     System.out.println("# Store 2 key-value pair in cluster");
-    react.put(Integer.MIN_VALUE / 2, "Hello World! 1", result1 -> {
-      System.out.println(" [" + Integer.toHexString(Integer.MIN_VALUE / 2) + ",Hello World! 1" + "]");
-      react.put(Integer.MAX_VALUE / 2 + 1, "Hello World! 2", result2 -> {
+
+    react.put(Integer.MIN_VALUE / 2, "Hello World! 1").
+      concatWith(react.put(Integer.MAX_VALUE / 2 + 1, "Hello World! 2")).
+      doOnCompleted(() -> {
         System.out.println(" [" + Integer.toHexString(Integer.MAX_VALUE / 2 + 1) + ",Hello World! 2" + "]");
-        react.get(Integer.MIN_VALUE / 2, value -> {
-        });
-        react.get(Integer.MAX_VALUE / 2 + 1, value -> {
-        });
+        react.get(Integer.MIN_VALUE / 2).subscribe(System.out::println);
+        react.get(Integer.MAX_VALUE / 2 + 1).subscribe(System.out::println);
 
         doRangeQuery(react, result -> {
           System.out.println(result.encodePrettily());
           System.exit(0);
         });
       });
-    });
+
   }
 
   public void doRangeQuery(ReactiveVertigo<String> react, RConsumer<JsonObject> callback) {
@@ -73,7 +72,7 @@ public class Starter extends AbstractVerticle {
       result.mergeIn(msg.body());
     });
 
-    react.<Boolean> traverse(Integer.MIN_VALUE, Integer.MAX_VALUE, Boolean.TRUE, (pair, v2) -> {
+    react.<Boolean>traverse(Integer.MIN_VALUE, Integer.MAX_VALUE, Boolean.TRUE, (pair, v2) -> {
       DhtNode<String> node = pair.context();
       JsonObject o = new JsonObject();
       node.getValues().entrySet().forEach(e -> o.put(Integer.toHexString(e.getKey()) + "", e.getValue()));
@@ -115,17 +114,16 @@ public class Starter extends AbstractVerticle {
       run(react);
     //}, null);
   }
-  */
-
+   */
   public static void main(String[] args) {
     Vertx.vertx().deployVerticle(Starter.class.getCanonicalName());
     // react.async.Queue;
-    
+
     Vertx.vertx().setTimer(30000, s -> {
-        System.err.println("STOP JAVA PROCESS");
-        System.err.println("  Starter.java  ");
-        System.err.println("CLEANUP VERTX RESSOURCES");
-        System.exit(-1);
+      System.err.println("STOP JAVA PROCESS");
+      System.err.println("  Starter.java  ");
+      System.err.println("CLEANUP VERTX RESSOURCES");
+      System.exit(-1);
     });
   }
 }

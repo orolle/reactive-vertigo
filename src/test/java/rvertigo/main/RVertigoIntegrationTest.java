@@ -20,6 +20,9 @@ import static org.junit.Assert.*;
 import org.junit.runner.RunWith;
 import rvertigo.function.RConsumer;
 import rvertigo.verticle.ReactiveVertigo;
+import rvertigo.verticle.dht.DHT;
+import rx.Completable;
+import rx.subjects.PublishSubject;
 
 /**
  *
@@ -58,38 +61,53 @@ public class RVertigoIntegrationTest {
   @Test
   public void bootstrapTest(TestContext context) {
     Async a = context.async();
-    bootstrapRunner(context, v -> {
-      a.complete();
-    });
+    bootstrapRunner(context).
+      subscribe(() -> {
+        rv1.get(0).toCompletable().subscribe(a::complete);
+      });
   }
 
-  private void bootstrapRunner(TestContext context, RConsumer<Void> completed) {
+  private Completable bootstrapRunner(TestContext context) {
+    PublishSubject result = PublishSubject.create();
+
     rv1.onJoined(r1 -> {
       context.assertTrue(r1 != null);
       rv2.onJoined(r2 -> {
         context.assertTrue(r2 != null);
         rv3.onJoined(r3 -> {
           context.assertTrue(r3 != null);
-          completed.accept(null);
+          // System.out.println("BOOTSTRAPED ALL");
+          result.onCompleted();
         });
       });
     });
+
+    return result.toCompletable();
   }
 
   @Test
   public void putAndGetTest(TestContext context) {
     Async a = context.async();
-    Integer testInt = 1337;
 
-    bootstrapRunner(context, v -> {
-      rv2.put(Integer.MIN_VALUE / 2, testInt, f -> {
-        rv3.get(Integer.MIN_VALUE / 2, value -> {
-          context.assertEquals(testInt, value);
-          context.assertNotEquals(System.identityHashCode(testInt), System.identityHashCode(value));
-          a.complete();
-        });
+    Integer testInt = 1337;
+    Set<Integer> expected = new HashSet<>();
+    expected.add(testInt);
+
+    bootstrapRunner(context).
+      subscribe(() -> {
+        rv2.put(Integer.MIN_VALUE / 2, testInt).
+          toSingleDefault(Boolean.TRUE).
+          flatMapObservable(v -> rv3.get(Integer.MIN_VALUE / 2)).
+          subscribe(value -> {
+            context.assertEquals(testInt, value);
+            context.assertNotEquals(System.identityHashCode(testInt), System.identityHashCode(value));
+            context.assertTrue(expected.remove(value));
+            context.assertTrue(expected.isEmpty());
+            a.complete();
+          }, e -> {
+            context.assertTrue(false, "Exception should not be thrown!");
+          });
       });
-    });
   }
 
   @Test
@@ -104,24 +122,24 @@ public class RVertigoIntegrationTest {
     expected.add(y);
     expected.add(z);
 
-    bootstrapRunner(context, v -> {
-      rv1.put(x, x, f1 -> {
-        rv2.put(y, y, f2 -> {
-          rv3.put(z, z, f3 -> {
-            rv1.
-              rangeQuery(y, z).
-              subscribe(
-                value -> context.assertTrue(expected.remove(value.getKey())),
-                e -> context.assertTrue(false, "Exception while handling results: " + e),
-                () -> {
-                  context.assertTrue(expected.isEmpty(), "Is not empty as expected!");
-                  a.complete();
-                }
-              );
-          });
-        });
-      });
+    Integer from = y;
+    Integer to = z + 1; // So that z is inculuded in the query range
 
-    });
+    bootstrapRunner(context).
+      subscribe(() -> {
+        rv1.put(x, x).
+          concatWith(rv2.put(y, y)).
+          concatWith(rv3.put(z, z)).
+          toSingleDefault(Boolean.TRUE).
+          flatMapObservable(v -> rv1.rangeQuery(from, to)).
+          subscribe(
+            value -> context.assertTrue(expected.remove(value.getKey())),
+            e -> context.assertTrue(false, "Exception while handling results: " + e),
+            () -> {
+              context.assertTrue(expected.isEmpty(), "Is not empty as expected!");
+              a.complete();
+            }
+          );
+      });
   }
 }

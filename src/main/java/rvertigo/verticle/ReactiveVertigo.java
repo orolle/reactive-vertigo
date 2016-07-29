@@ -12,7 +12,9 @@ import rvertigo.function.ReactiveLambda;
 import rvertigo.stream.ReactivePipeline;
 import rvertigo.stream.ReactiveStream;
 import rvertigo.verticle.dht.DhtNode;
+import rx.Completable;
 import rx.Observable;
+import rx.Single;
 
 public class ReactiveVertigo<V extends Serializable> {
   protected final DhtNode<V> node;
@@ -37,16 +39,16 @@ public class ReactiveVertigo<V extends Serializable> {
     this.node.traverse(start, end, identity, f, handler);
   }
 
-  public void put(Integer key, V value, RConsumer<Boolean> callback) {
-    this.node.put(key, value, callback);
+  public Completable put(Integer key, V value) {
+    return this.node.put(key, value);
   }
 
-  public void get(Integer key, RConsumer<V> callback) {
-    this.node.get(key, callback);
+  public Observable<V> get(Integer key) {
+    return this.node.get(key);
   }
   
   public Observable<Map.Entry<Integer, V>> rangeQuery(Integer from, Integer to) {
-    return this.node.doRangeQuery(from, to);
+    return this.node.rangeQuery(from, to);
   }
 
   private Integer random() {
@@ -59,5 +61,9 @@ public class ReactiveVertigo<V extends Serializable> {
       vertx.eventBus().<T> consumer(str).handler(msg -> r.callback().accept(msg.body()));
     });
     return r;
+  }
+  
+  public DhtNode<V> getDhtNode() {
+    return this.node;
   }
 }

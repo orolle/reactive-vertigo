@@ -23,11 +23,11 @@ public interface DHT {
   public static boolean isResponsible(Integer rangeStart, Integer rangeEnd, Integer value) {
     // continued hash range
     if (rangeStart < rangeEnd) {
-      return rangeStart <= value && rangeEnd >= value;
+      return rangeStart <= value && rangeEnd > value;
     }
     // discontinued hash range
     else {
-      return rangeStart <= value || rangeEnd >= value;
+      return rangeStart <= value || rangeEnd > value;
     }
   }
 

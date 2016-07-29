@@ -14,9 +14,12 @@ import rvertigo.function.AsyncFunction;
 import rvertigo.function.RConsumer;
 import rvertigo.function.ReactiveLambda;
 import rvertigo.verticle.ReactiveVertigo;
+import rx.Completable;
 import rx.Observable;
 import rx.Observer;
+import rx.Single;
 import rx.subjects.PublishSubject;
+import rx.subjects.ReplaySubject;
 
 public class DhtNode<T extends Serializable> {
 
@@ -45,6 +48,8 @@ public class DhtNode<T extends Serializable> {
   }
 
   protected void onBootstraped() {
+    // System.out.println("register node " + Integer.toHexString(myHash) + " to " + DHT.toAddress(prefix, 0));
+    // System.out.println("register node " + Integer.toHexString(myHash)  + " to " + DHT.toAddress(prefix, myHash));
     vertx.eventBus().consumer(DHT.toAddress(prefix, 0), (Message<byte[]> msg) -> processManagementMessage(msg));
     vertx.eventBus().consumer(DHT.toAddress(prefix, myHash), (Message<byte[]> msg) -> processManagementMessage(msg));
   }
@@ -102,31 +107,105 @@ public class DhtNode<T extends Serializable> {
 
     });
 
+    // System.out.println("send node " + Integer.toHexString(myHash)  + " to " + DHT.toAddress(prefix, nextHash));
     vertx.eventBus().send(DHT.toAddress(prefix, nextHash), ser, (AsyncResult<Message<R>> ar) -> {
       if (ar.succeeded()) {
         handler.accept(ar.result().body());
       } else {
+        ar.cause().printStackTrace();
         handler.accept(null);
       }
     });
   }
 
-  public void put(Integer key, T value, RConsumer<Boolean> callback) {
-    traverse(key, key, Boolean.TRUE, (pair, v2) -> {
+  /*
+  public <R extends Serializable> Observable<R> traverse(Integer start, Integer end, R identity,
+    AsyncFunction<ReactiveLambda<DhtNode<T>, DhtNode<T>, R>, R> f) {
+    final Integer hash = myHash;
+
+    byte[] ser = DHT.<T, R>managementMessage((pair, cb) -> {
+      ReactiveLambda<Pair<DhtNode<T>, Message<byte[]>>, Message<byte[]>, R> c = pair;
+      Message<byte[]> msg = pair.context().getValue1();
+
+      if ((!start.equals(end) && DHT.isResponsible(start, end, c.context().getValue0().myHash))
+        || DHT.isResponsible(c.context().getValue0(), start) || DHT.isResponsible(c.context().getValue0(), end)) {
+        f.apply(new ReactiveLambda<>(f).context(c.context().getValue0()), (R result) -> {
+          msg.reply(result);
+        });
+      }
+
+      if (!hash.equals(c.context().getValue0().myHash)) {
+        String addr = DHT.toAddress(c.context().getValue0().prefix, c.context().getValue0().nextHash);
+        c.context().getValue0().vertx.eventBus().send(addr, c.serialize(), ar -> {
+          if (ar.succeeded()) {
+            msg.reply(ar.result().body());
+          } else {
+            msg.reply(ar.cause());
+          }
+        });
+      } else {
+        msg.reply(identity);
+      }
+    });
+    
+    PublishSubject<R> result = PublishSubject.create();
+    ReplaySubject<R> replay = ReplaySubject.create();
+    result.subscribe(replay);
+
+    vertx.eventBus().send(DHT.toAddress(prefix, nextHash), ser, (AsyncResult<Message<R>> ar) -> {
+      if (ar.succeeded()) {
+        result.onNext(ar.result().body());
+      } else {
+        result.onError(ar.cause());
+      }
+    });
+    
+    return replay;
+  }
+   */
+  public Completable put(Integer key, T value) {
+    PublishSubject<Void> result = PublishSubject.<Void>create();
+
+    traverse(key, key, true, (pair, v2) -> {
       pair.context().getValues().put(key, value);
       v2.accept(true);
-    }, callback);
+    }, b -> {
+      if (b) {
+        result.onCompleted();
+      } else {
+        result.onError(new RuntimeException("Something went wrong during put(" + key.toString() + ", "
+          + value.toString() + ")"));
+      }
+    });
+
+    return Completable.fromObservable(result);
   }
 
-  public void get(Integer key, RConsumer<T> callback) {
+  public Observable<T> get(Integer key) {
+    PublishSubject<T> result = PublishSubject.create();
+
+    ReplaySubject<T> replay = ReplaySubject.create();
+    result.subscribe(replay);
+
     traverse(key, key, null, (pair, cb) -> {
       T data = pair.context().getValues().get(key);
       cb.accept(data);
-    }, callback);
+    }, (T data) -> {
+      if(data != null) {
+        result.onNext(data);
+      }
+      
+      result.onCompleted();
+    });
+
+    return replay;
   }
 
-  public Observable<Map.Entry<Integer, T>> doRangeQuery(Integer from, Integer to) {
+  public Observable<Map.Entry<Integer, T>> rangeQuery(Integer from, Integer to) {
     PublishSubject<Map.Entry<Integer, T>> result = PublishSubject.<Map.Entry<Integer, T>>create();
+
+    ReplaySubject<Map.Entry<Integer, T>> replay = ReplaySubject.create();
+    result.subscribe(replay);
 
     final String address = UUID.randomUUID().toString() + ".data";
 
@@ -150,7 +229,7 @@ public class DhtNode<T extends Serializable> {
       result.onCompleted();
     });
 
-    return result;
+    return replay;
   }
 
   @Override
