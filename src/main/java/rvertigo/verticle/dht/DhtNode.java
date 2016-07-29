@@ -12,7 +12,7 @@ import java.util.UUID;
 import org.javatuples.Pair;
 import rvertigo.function.AsyncFunction;
 import rvertigo.function.RConsumer;
-import rvertigo.function.ReactiveLambda;
+import rvertigo.function.SerializableLambda;
 import rvertigo.verticle.ReactiveVertigo;
 import rx.Completable;
 import rx.Observable;
@@ -71,23 +71,23 @@ public class DhtNode<T extends Serializable> {
   }
 
   protected void processManagementMessage(Message<byte[]> msg) {
-    ReactiveLambda<Pair<DhtNode<T>, Message<byte[]>>, Message<byte[]>, Void> l = new ReactiveLambda<>(msg.body());
+    SerializableLambda<Pair<DhtNode<T>, Message<byte[]>>, Message<byte[]>, Void> l = new SerializableLambda<>(msg.body());
     l.context(new Pair<>(this, msg));
     l.onNext(msg);
   }
 
   public <R extends Serializable> void traverse(Integer start, Integer end, R identity,
-    AsyncFunction<ReactiveLambda<DhtNode<T>, DhtNode<T>, R>, R> f,
+    AsyncFunction<SerializableLambda<DhtNode<T>, DhtNode<T>, R>, R> f,
     RConsumer<R> handler) {
     final Integer hash = myHash;
 
     byte[] ser = DHT.<T, R>managementMessage((pair, cb) -> {
-      ReactiveLambda<Pair<DhtNode<T>, Message<byte[]>>, Message<byte[]>, R> c = pair;
+      SerializableLambda<Pair<DhtNode<T>, Message<byte[]>>, Message<byte[]>, R> c = pair;
       Message<byte[]> msg = pair.context().getValue1();
 
       if ((!start.equals(end) && DHT.isResponsible(start, end, c.context().getValue0().myHash))
         || DHT.isResponsible(c.context().getValue0(), start) || DHT.isResponsible(c.context().getValue0(), end)) {
-        f.apply(new ReactiveLambda<>(f).context(c.context().getValue0()), (R result) -> {
+        f.apply(new SerializableLambda<>(f).context(c.context().getValue0()), (R result) -> {
           msg.reply(result);
         });
       }

@@ -1,6 +1,7 @@
 package rvertigo.function;
 
 
+import io.vertx.core.eventbus.Message;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -8,26 +9,28 @@ import org.reactivestreams.Processor;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
-public class ReactiveLambda<C, T, R> implements Processor<T, R>, Serializable {
+public class SerializableLambda<C, T, R> implements Processor<T, R>, Serializable {
   private static final long serialVersionUID = -2856282687873376802L;
   private static final byte[] EMPTY = new byte[] {};
 
   private final byte[] ser;
+  
   private transient RConsumer<R> handleResult;
   private transient List<Subscriber<? super R>> subscribers;
 
   private transient C contex;
-  private transient AsyncFunction<ReactiveLambda<C, T, R>, R> function;
+  private transient Message<byte[]> msg;
+  private transient AsyncFunction<SerializableLambda<C, T, R>, R> function;
 
-  public ReactiveLambda(AsyncFunction<ReactiveLambda<C, T, R>, R> f) {
+  public SerializableLambda(AsyncFunction<SerializableLambda<C, T, R>, R> f) {
     this(Serializer.serialize(f));
   }
 
-  public ReactiveLambda() {
+  public SerializableLambda() {
     this(Serializer.EMPTY);
   }
 
-  public ReactiveLambda(byte[] ser) {
+  public SerializableLambda(byte[] ser) {
     this.ser = ser;
     init();
   }
@@ -40,7 +43,7 @@ public class ReactiveLambda<C, T, R> implements Processor<T, R>, Serializable {
     }
   }
 
-  public ReactiveLambda<C, T, R> context(C context) {
+  public SerializableLambda<C, T, R> context(C context) {
     this.contex = context;
     return this;
   }
