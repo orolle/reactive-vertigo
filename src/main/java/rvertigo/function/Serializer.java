@@ -4,10 +4,15 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import rvertigo.verticle.dht.DhtLambda;
 
 public interface Serializer {
   public static final byte[] EMPTY = new byte[] {};
 
+  public static byte[] serializeAsyncFunction(AsyncFunction<?, ?> f) {
+    return serialize(f);
+  }
+  
   public static byte[] serialize(Object o) {
     try {
       ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -16,7 +21,7 @@ public interface Serializer {
 
       return bos.toByteArray();
     } catch (Exception e) {
-      throw new IllegalStateException(e);
+      throw new IllegalStateException("Likely cause: reference to non-serializable outer class?", e);
     }
   }
 

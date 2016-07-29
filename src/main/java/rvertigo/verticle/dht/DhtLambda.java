@@ -14,7 +14,7 @@ import rvertigo.function.Serializer;
 public class DhtLambda<C, T, R> implements Processor<T, R>, Serializable {
 
   private static final long serialVersionUID = -2856282687873376802L;
-  private static final byte[] EMPTY = new byte[]{};
+  private static final byte[] EMPTY = Serializer.serializeAsyncFunction((p, cb) -> {});
 
   private final byte[] ser;
 
