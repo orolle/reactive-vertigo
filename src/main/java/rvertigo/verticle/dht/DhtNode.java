@@ -82,12 +82,12 @@ public class DhtNode<T extends Serializable> {
     final Integer hash = myHash;
 
     byte[] ser = DHT.<T, R>managementMessage((lambda, cb) -> {
-      DhtNode<T> node = lambda.contextNode();
-      Message<byte[]> msg = lambda.contextMsg();
+      final DhtNode<T> node = lambda.contextNode();
+      final Message<byte[]> msg = lambda.contextMsg();
 
       if ((!start.equals(end) && DHT.isResponsible(start, end, node.myHash))
         || DHT.isResponsible(node, start) || DHT.isResponsible(node, end)) {
-        f.apply(new DhtLambda<>(f).contextNode(node), (R result) -> {
+        f.apply(new DhtLambda<>(f).contextNode(node).contextMsg(msg), (R result) -> {
           msg.reply(result);
         });
       }
@@ -166,8 +166,8 @@ public class DhtNode<T extends Serializable> {
   public Completable put(Integer key, T value) {
     PublishSubject<Void> result = PublishSubject.<Void>create();
 
-    traverse(key, key, true, (pair, v2) -> {
-      pair.contextNode().getValues().put(key, value);
+    traverse(key, key, true, (lambda, v2) -> {
+      lambda.contextNode().getValues().put(key, value);
       v2.accept(true);
     }, b -> {
       if (b) {
