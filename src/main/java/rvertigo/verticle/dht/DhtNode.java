@@ -70,20 +70,20 @@ public class DhtNode<T extends Serializable> {
   }
 
   protected void processManagementMessage(Message<byte[]> msg) {
-    DhtLambda<DhtNode<T>, Message<byte[]>, Void> l = new DhtLambda<>(msg.body());
+    DhtLambda<DhtNode<T>, Void> l = new DhtLambda<>(msg.body());
     l.contextNode(this);
     l.contextMsg(msg);
-    l.onNext(msg);
+    l.onNext(null);
   }
 
   public <R extends Serializable> void traverse(Integer start, Integer end, R identity,
-    AsyncFunction<DhtLambda<DhtNode<T>, DhtNode<T>, R>, R> f,
+    AsyncFunction<DhtLambda<DhtNode<T>, R>, R> f,
     RConsumer<R> handler) {
     final Integer hash = myHash;
 
     byte[] ser = DHT.<T, R>managementMessage((lambda, cb) -> {
-      final DhtNode<T> node = lambda.contextNode();
-      final Message<byte[]> msg = lambda.contextMsg();
+      final DhtNode<T> node = lambda.node();
+      final Message<byte[]> msg = lambda.msg();
 
       if ((!start.equals(end) && DHT.isResponsible(start, end, node.myHash))
         || DHT.isResponsible(node, start) || DHT.isResponsible(node, end)) {
@@ -167,7 +167,7 @@ public class DhtNode<T extends Serializable> {
     PublishSubject<Void> result = PublishSubject.<Void>create();
 
     traverse(key, key, true, (lambda, v2) -> {
-      lambda.contextNode().getValues().put(key, value);
+      lambda.node().getValues().put(key, value);
       v2.accept(true);
     }, b -> {
       if (b) {
@@ -188,7 +188,7 @@ public class DhtNode<T extends Serializable> {
     result.subscribe(replay);
 
     traverse(key, key, null, (pair, cb) -> {
-      T data = pair.contextNode().getValues().get(key);
+      T data = pair.node().getValues().get(key);
       cb.accept(data);
     }, (T data) -> {
       if(data != null) {
@@ -215,7 +215,7 @@ public class DhtNode<T extends Serializable> {
     });
 
     traverse(from, to, Boolean.TRUE, (pair, v2) -> {
-      DhtNode<T> node = pair.contextNode();
+      DhtNode<T> node = pair.node();
       node.getValues().entrySet().stream().
         filter(e -> DHT.isResponsible(from, to, e.getKey())).
         forEach(e
