@@ -70,14 +70,14 @@ public class DhtNode<T extends Serializable> {
   }
 
   protected void processManagementMessage(Message<byte[]> msg) {
-    DhtLambda<DhtNode<T>, Void> l = new DhtLambda<>(msg.body());
+    DhtLambda<T, ? extends Serializable> l = new DhtLambda<>(msg.body());
     l.contextNode(this);
     l.contextMsg(msg);
     l.onNext(null);
   }
 
   public <R extends Serializable> void traverse(Integer start, Integer end, R identity,
-    AsyncFunction<DhtLambda<DhtNode<T>, R>, R> f,
+    AsyncFunction<DhtLambda<T, R>, R> f,
     RConsumer<R> handler) {
     final Integer hash = myHash;
 

@@ -11,7 +11,7 @@ import rvertigo.function.AsyncFunction;
 import rvertigo.function.RConsumer;
 import rvertigo.function.Serializer;
 
-public class DhtLambda<C, R> implements Processor<Void, R>, Serializable {
+public class DhtLambda<T extends Serializable, R extends Serializable> implements Processor<Void, R>, Serializable {
 
   private static final long serialVersionUID = -2856282687873376802L;
   private static final byte[] EMPTY = Serializer.serializeAsyncFunction((p, cb) -> {});
@@ -21,11 +21,11 @@ public class DhtLambda<C, R> implements Processor<Void, R>, Serializable {
   private transient RConsumer<R> handleResult;
   private transient List<Subscriber<? super R>> subscribers;
 
-  private transient C contex;
+  private transient DhtNode<T> node;
   private transient Message<byte[]> msg;
-  private transient AsyncFunction<DhtLambda<C, R>, R> function;
+  private transient AsyncFunction<DhtLambda<T, R>, R> function;
 
-  public DhtLambda(AsyncFunction<DhtLambda<C, R>, R> f) {
+  public DhtLambda(AsyncFunction<DhtLambda<T, R>, R> f) {
     this(Serializer.serialize(f));
   }
 
@@ -46,18 +46,18 @@ public class DhtLambda<C, R> implements Processor<Void, R>, Serializable {
     }
   }
 
-  public DhtLambda<C, R> contextNode(C context) {
-    this.contex = context;
+  public DhtLambda<T, R> contextNode(DhtNode<T> context) {
+    this.node = context;
     return this;
   }
 
-  public DhtLambda<C, R> contextMsg(Message<byte[]> msg) {
+  public DhtLambda<T, R> contextMsg(Message<byte[]> msg) {
     this.msg = msg;
     return this;
   }
 
-  public C node() {
-    return contex;
+  public DhtNode<T> node() {
+    return node;
   }
 
   public Message<byte[]> msg() {

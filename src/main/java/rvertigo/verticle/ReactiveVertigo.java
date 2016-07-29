@@ -34,7 +34,7 @@ public class ReactiveVertigo<V extends Serializable> {
   }
 
   public <R extends Serializable> void traverse(Integer start, Integer end, R identity,
-  AsyncFunction<DhtLambda<DhtNode<V>, R>, R> f,
+  AsyncFunction<DhtLambda<V, R>, R> f,
     RConsumer<R> handler) {
     this.node.traverse(start, end, identity, f, handler);
   }
