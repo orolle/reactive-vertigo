@@ -1,5 +1,4 @@
-package rvertigo.function;
-
+package rvertigo.verticle.dht;
 
 import io.vertx.core.eventbus.Message;
 import java.io.Serializable;
@@ -8,33 +7,37 @@ import java.util.List;
 import org.reactivestreams.Processor;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
+import rvertigo.function.AsyncFunction;
+import rvertigo.function.RConsumer;
+import rvertigo.function.Serializer;
 
-public class SerializableLambda<C, T, R> implements Processor<T, R>, Serializable {
+public class DhtLambda<C, T, R> implements Processor<T, R>, Serializable {
+
   private static final long serialVersionUID = -2856282687873376802L;
-  private static final byte[] EMPTY = new byte[] {};
+  private static final byte[] EMPTY = new byte[]{};
 
   private final byte[] ser;
-  
+
   private transient RConsumer<R> handleResult;
   private transient List<Subscriber<? super R>> subscribers;
 
   private transient C contex;
   private transient Message<byte[]> msg;
-  private transient AsyncFunction<SerializableLambda<C, T, R>, R> function;
+  private transient AsyncFunction<DhtLambda<C, T, R>, R> function;
 
-  public SerializableLambda(AsyncFunction<SerializableLambda<C, T, R>, R> f) {
+  public DhtLambda(AsyncFunction<DhtLambda<C, T, R>, R> f) {
     this(Serializer.serialize(f));
   }
 
-  public SerializableLambda() {
+  public DhtLambda() {
     this(Serializer.EMPTY);
   }
 
-  public SerializableLambda(byte[] ser) {
+  public DhtLambda(byte[] ser) {
     this.ser = ser;
     init();
   }
-  
+
   private void init() {
     if (function == null && ser != EMPTY) {
       function = Serializer.deserialize(ser);
@@ -43,13 +46,22 @@ public class SerializableLambda<C, T, R> implements Processor<T, R>, Serializabl
     }
   }
 
-  public SerializableLambda<C, T, R> context(C context) {
+  public DhtLambda<C, T, R> contextNode(C context) {
     this.contex = context;
     return this;
   }
 
-  public C context() {
+  public DhtLambda<C, T, R> contextMsg(Message<byte[]> msg) {
+    this.msg = msg;
+    return this;
+  }
+
+  public C contextNode() {
     return contex;
+  }
+
+  public Message<byte[]> contextMsg() {
+    return msg;
   }
 
   public byte[] serialize() {
@@ -70,7 +82,7 @@ public class SerializableLambda<C, T, R> implements Processor<T, R>, Serializabl
   @Override
   public void onNext(T t) {
     init();
-    
+
     function.apply(this, handleResult);
   }
 

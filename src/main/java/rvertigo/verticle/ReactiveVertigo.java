@@ -8,7 +8,7 @@ import java.util.Random;
 import org.javatuples.Pair;
 import rvertigo.function.AsyncFunction;
 import rvertigo.function.RConsumer;
-import rvertigo.function.SerializableLambda;
+import rvertigo.verticle.dht.DhtLambda;
 import rvertigo.stream.ReactivePipeline;
 import rvertigo.stream.ReactiveStream;
 import rvertigo.verticle.dht.DhtNode;
@@ -34,7 +34,7 @@ public class ReactiveVertigo<V extends Serializable> {
   }
 
   public <R extends Serializable> void traverse(Integer start, Integer end, R identity,
-  AsyncFunction<SerializableLambda<DhtNode<V>, DhtNode<V>, R>, R> f,
+  AsyncFunction<DhtLambda<DhtNode<V>, DhtNode<V>, R>, R> f,
     RConsumer<R> handler) {
     this.node.traverse(start, end, identity, f, handler);
   }

@@ -12,7 +12,6 @@ import java.util.UUID;
 import org.javatuples.Pair;
 import rvertigo.function.AsyncFunction;
 import rvertigo.function.RConsumer;
-import rvertigo.function.SerializableLambda;
 import rvertigo.verticle.ReactiveVertigo;
 import rx.Completable;
 import rx.Observable;
@@ -71,30 +70,31 @@ public class DhtNode<T extends Serializable> {
   }
 
   protected void processManagementMessage(Message<byte[]> msg) {
-    SerializableLambda<Pair<DhtNode<T>, Message<byte[]>>, Message<byte[]>, Void> l = new SerializableLambda<>(msg.body());
-    l.context(new Pair<>(this, msg));
+    DhtLambda<DhtNode<T>, Message<byte[]>, Void> l = new DhtLambda<>(msg.body());
+    l.contextNode(this);
+    l.contextMsg(msg);
     l.onNext(msg);
   }
 
   public <R extends Serializable> void traverse(Integer start, Integer end, R identity,
-    AsyncFunction<SerializableLambda<DhtNode<T>, DhtNode<T>, R>, R> f,
+    AsyncFunction<DhtLambda<DhtNode<T>, DhtNode<T>, R>, R> f,
     RConsumer<R> handler) {
     final Integer hash = myHash;
 
-    byte[] ser = DHT.<T, R>managementMessage((pair, cb) -> {
-      SerializableLambda<Pair<DhtNode<T>, Message<byte[]>>, Message<byte[]>, R> c = pair;
-      Message<byte[]> msg = pair.context().getValue1();
+    byte[] ser = DHT.<T, R>managementMessage((lambda, cb) -> {
+      DhtNode<T> node = lambda.contextNode();
+      Message<byte[]> msg = lambda.contextMsg();
 
-      if ((!start.equals(end) && DHT.isResponsible(start, end, c.context().getValue0().myHash))
-        || DHT.isResponsible(c.context().getValue0(), start) || DHT.isResponsible(c.context().getValue0(), end)) {
-        f.apply(new SerializableLambda<>(f).context(c.context().getValue0()), (R result) -> {
+      if ((!start.equals(end) && DHT.isResponsible(start, end, node.myHash))
+        || DHT.isResponsible(node, start) || DHT.isResponsible(node, end)) {
+        f.apply(new DhtLambda<>(f).contextNode(node), (R result) -> {
           msg.reply(result);
         });
       }
 
-      if (!hash.equals(c.context().getValue0().myHash)) {
-        String addr = DHT.toAddress(c.context().getValue0().prefix, c.context().getValue0().nextHash);
-        c.context().getValue0().vertx.eventBus().send(addr, c.serialize(), ar -> {
+      if (!hash.equals(node.myHash)) {
+        String addr = DHT.toAddress(node.prefix, node.nextHash);
+        node.vertx.eventBus().send(addr, lambda.serialize(), ar -> {
           if (ar.succeeded()) {
             msg.reply(ar.result().body());
           } else {
@@ -167,7 +167,7 @@ public class DhtNode<T extends Serializable> {
     PublishSubject<Void> result = PublishSubject.<Void>create();
 
     traverse(key, key, true, (pair, v2) -> {
-      pair.context().getValues().put(key, value);
+      pair.contextNode().getValues().put(key, value);
       v2.accept(true);
     }, b -> {
       if (b) {
@@ -188,7 +188,7 @@ public class DhtNode<T extends Serializable> {
     result.subscribe(replay);
 
     traverse(key, key, null, (pair, cb) -> {
-      T data = pair.context().getValues().get(key);
+      T data = pair.contextNode().getValues().get(key);
       cb.accept(data);
     }, (T data) -> {
       if(data != null) {
@@ -215,7 +215,7 @@ public class DhtNode<T extends Serializable> {
     });
 
     traverse(from, to, Boolean.TRUE, (pair, v2) -> {
-      DhtNode<T> node = pair.context();
+      DhtNode<T> node = pair.contextNode();
       node.getValues().entrySet().stream().
         filter(e -> DHT.isResponsible(from, to, e.getKey())).
         forEach(e

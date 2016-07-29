@@ -25,8 +25,8 @@ public class Bootstrap<T extends Serializable> {
     final Integer hash = node.myHash;
 
     byte[] ser = DHT.managementMessage((lambda, cb) -> {
-      DhtNode<?> context = (DhtNode<?>) lambda.context().getValue0();
-      Message<byte[]> msg = lambda.context().getValue1();
+      DhtNode<T> context = (DhtNode<T>) lambda.contextNode();
+      Message<byte[]> msg = lambda.contextMsg();
 
       if (DHT.isResponsible(context, hash)) {
         msg.reply(context.nextHash);

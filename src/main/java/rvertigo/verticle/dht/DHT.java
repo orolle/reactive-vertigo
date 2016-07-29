@@ -4,7 +4,6 @@ import io.vertx.core.eventbus.Message;
 import java.io.Serializable;
 import org.javatuples.Pair;
 import rvertigo.function.AsyncFunction;
-import rvertigo.function.SerializableLambda;
 import rvertigo.function.Serializer;
 
 
@@ -32,7 +31,7 @@ public interface DHT {
   }
 
   public static <T extends Serializable, R extends Serializable> byte[] managementMessage(
-    AsyncFunction<SerializableLambda<Pair<DhtNode<T>, Message<byte[]>>, Message<byte[]>, R>, R> f) {
+    AsyncFunction<DhtLambda<DhtNode<T>, Message<byte[]>, R>, R> f) {
     return Serializer.serialize(f);
   }
 }
