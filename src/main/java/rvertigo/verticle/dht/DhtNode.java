@@ -71,9 +71,11 @@ public class DhtNode<T extends Serializable> {
 
   protected void processManagementMessage(Message<byte[]> msg) {
     DhtLambda<T, ? extends Serializable> l = new DhtLambda<>(msg.body());
-    l.contextNode(this);
-    l.contextMsg(msg);
-    l.onNext(null);
+    l.node(this);
+    l.msg(msg);
+    
+    l.execute().
+      subscribe();
   }
 
   public <R extends Serializable> void traverse(Integer start, Integer end, R identity,
@@ -87,7 +89,7 @@ public class DhtNode<T extends Serializable> {
 
       if ((!start.equals(end) && DHT.isResponsible(start, end, node.myHash))
         || DHT.isResponsible(node, start) || DHT.isResponsible(node, end)) {
-        f.apply(new DhtLambda<>(f).contextNode(node).contextMsg(msg), (R result) -> {
+        f.apply(new DhtLambda<>(f).node(node).msg(msg), (R result) -> {
           msg.reply(result);
         });
       }

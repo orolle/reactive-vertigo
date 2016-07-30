@@ -10,16 +10,18 @@ import org.reactivestreams.Subscription;
 import rvertigo.function.AsyncFunction;
 import rvertigo.function.RConsumer;
 import rvertigo.function.Serializer;
+import rx.Completable;
+import rx.Observable;
+import rx.subjects.PublishSubject;
+import rx.subjects.ReplaySubject;
 
-public class DhtLambda<T extends Serializable, R extends Serializable> implements Processor<Void, R>, Serializable {
+public class DhtLambda<T extends Serializable, R extends Serializable> implements Serializable {
 
   private static final long serialVersionUID = -2856282687873376802L;
-  private static final byte[] EMPTY = Serializer.serializeAsyncFunction((p, cb) -> {});
+  private static final byte[] EMPTY = Serializer.serializeAsyncFunction((p, cb) -> {
+  });
 
   private final byte[] ser;
-
-  private transient RConsumer<R> handleResult;
-  private transient List<Subscriber<? super R>> subscribers;
 
   private transient DhtNode<T> node;
   private transient Message<byte[]> msg;
@@ -39,19 +41,17 @@ public class DhtLambda<T extends Serializable, R extends Serializable> implement
   }
 
   private void init() {
-    if (function == null && ser != EMPTY) {
+    if (function == null) {
       function = Serializer.deserialize(ser);
-      handleResult = (R r) -> handleResult(r);
-      subscribers = new ArrayList<>();
     }
   }
 
-  public DhtLambda<T, R> contextNode(DhtNode<T> context) {
+  public DhtLambda<T, R> node(DhtNode<T> context) {
     this.node = context;
     return this;
   }
 
-  public DhtLambda<T, R> contextMsg(Message<byte[]> msg) {
+  public DhtLambda<T, R> msg(Message<byte[]> msg) {
     this.msg = msg;
     return this;
   }
@@ -68,43 +68,14 @@ public class DhtLambda<T extends Serializable, R extends Serializable> implement
     return ser;
   }
 
-  private void handleResult(R r) {
+  public Completable execute() {
     init();
-
-    subscribers.forEach(s -> s.onNext(r));
+    PublishSubject<R> result = PublishSubject.create();
+    
+    function.apply(this, r -> {
+      result.onCompleted();
+    });
+    
+    return result.toCompletable();
   }
-
-  @Override
-  public void onSubscribe(Subscription s) {
-    s.request(Long.MAX_VALUE);
-  }
-
-  @Override
-  public void onNext(Void t) {
-    init();
-
-    function.apply(this, handleResult);
-  }
-
-  @Override
-  public void onError(Throwable t) {
-    init();
-
-    subscribers.forEach(s -> s.onError(t));
-  }
-
-  @Override
-  public void onComplete() {
-    init();
-
-    subscribers.forEach(s -> s.onComplete());
-  }
-
-  @Override
-  public void subscribe(Subscriber<? super R> s) {
-    init();
-
-    subscribers.add(s);
-  }
-
 }
