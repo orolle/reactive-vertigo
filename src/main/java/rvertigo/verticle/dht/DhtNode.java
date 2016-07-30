@@ -120,51 +120,6 @@ public class DhtNode<T extends Serializable> {
     });
   }
 
-  /*
-  public <R extends Serializable> Observable<R> traverse(Integer start, Integer end, R identity,
-    AsyncFunction<ReactiveLambda<DhtNode<T>, DhtNode<T>, R>, R> f) {
-    final Integer hash = myHash;
-
-    byte[] ser = DHT.<T, R>managementMessage((pair, cb) -> {
-      ReactiveLambda<Pair<DhtNode<T>, Message<byte[]>>, Message<byte[]>, R> c = pair;
-      Message<byte[]> msg = pair.context().getValue1();
-
-      if ((!start.equals(end) && DHT.isResponsible(start, end, c.context().getValue0().myHash))
-        || DHT.isResponsible(c.context().getValue0(), start) || DHT.isResponsible(c.context().getValue0(), end)) {
-        f.apply(new ReactiveLambda<>(f).context(c.context().getValue0()), (R result) -> {
-          msg.reply(result);
-        });
-      }
-
-      if (!hash.equals(c.context().getValue0().myHash)) {
-        String addr = DHT.toAddress(c.context().getValue0().prefix, c.context().getValue0().nextHash);
-        c.context().getValue0().vertx.eventBus().send(addr, c.serialize(), ar -> {
-          if (ar.succeeded()) {
-            msg.reply(ar.result().body());
-          } else {
-            msg.reply(ar.cause());
-          }
-        });
-      } else {
-        msg.reply(identity);
-      }
-    });
-    
-    PublishSubject<R> result = PublishSubject.create();
-    ReplaySubject<R> replay = ReplaySubject.create();
-    result.subscribe(replay);
-
-    vertx.eventBus().send(DHT.toAddress(prefix, nextHash), ser, (AsyncResult<Message<R>> ar) -> {
-      if (ar.succeeded()) {
-        result.onNext(ar.result().body());
-      } else {
-        result.onError(ar.cause());
-      }
-    });
-    
-    return replay;
-  }
-   */
   public Completable put(Integer key, T value) {
     PublishSubject<Void> result = PublishSubject.<Void>create();
 
