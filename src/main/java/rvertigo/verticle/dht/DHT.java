@@ -30,8 +30,8 @@ public interface DHT {
     }
   }
 
-  public static <T extends Serializable, R extends Serializable> byte[] managementMessage(
-    AsyncFunction<DhtLambda<T, R>, R> f) {
+  public static <NODE, R extends Serializable> byte[] managementMessage(
+    AsyncFunction<DhtLambda<NODE, R>, R> f) {
     return Serializer.serialize(f);
   }
 }

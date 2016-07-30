@@ -1,5 +1,6 @@
 package rvertigo.verticle;
 
+import io.vertx.core.AsyncResult;
 import io.vertx.core.Vertx;
 import java.io.Serializable;
 import java.util.Arrays;
@@ -11,13 +12,14 @@ import rvertigo.function.RConsumer;
 import rvertigo.verticle.dht.DhtLambda;
 import rvertigo.stream.ReactivePipeline;
 import rvertigo.stream.ReactiveStream;
+import rvertigo.verticle.dht.DhtMap;
 import rvertigo.verticle.dht.DhtNode;
 import rx.Completable;
 import rx.Observable;
 import rx.Single;
 
 public class ReactiveVertigo<V extends Serializable> {
-  protected final DhtNode<V> node;
+  protected final DhtMap<V> node;
   //protected DhtNode<LazyReact> noder;
   protected final Vertx vertx;
 
@@ -25,7 +27,7 @@ public class ReactiveVertigo<V extends Serializable> {
 
   public ReactiveVertigo(Vertx vertx) {
     this.vertx = vertx;
-    this.node = new DhtNode<V>(vertx, "DhtNode", random());
+    this.node = new DhtMap<V>(vertx, "DhtNode", random());
   }
 
   public ReactiveVertigo onJoined(RConsumer<ReactiveVertigo> f) {
@@ -34,8 +36,8 @@ public class ReactiveVertigo<V extends Serializable> {
   }
 
   public <R extends Serializable> void traverse(Integer start, Integer end, R identity,
-  AsyncFunction<DhtLambda<V, R>, R> f,
-    RConsumer<R> handler) {
+  AsyncFunction<DhtLambda<DhtNode<V>, R>, R> f,
+    RConsumer<AsyncResult<R>> handler) {
     this.node.traverse(start, end, identity, f, handler);
   }
 

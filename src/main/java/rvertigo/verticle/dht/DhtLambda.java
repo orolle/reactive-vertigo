@@ -15,7 +15,7 @@ import rx.Observable;
 import rx.subjects.PublishSubject;
 import rx.subjects.ReplaySubject;
 
-public class DhtLambda<T extends Serializable, R extends Serializable> implements Serializable {
+public class DhtLambda<NODE, RESULT extends Serializable> implements Serializable {
 
   private static final long serialVersionUID = -2856282687873376802L;
   private static final byte[] EMPTY = Serializer.serializeAsyncFunction((p, cb) -> {
@@ -23,11 +23,11 @@ public class DhtLambda<T extends Serializable, R extends Serializable> implement
 
   private final byte[] ser;
 
-  private transient DhtNode<T> node;
+  private transient NODE node;
   private transient Message<byte[]> msg;
-  private transient AsyncFunction<DhtLambda<T, R>, R> function;
+  private transient AsyncFunction<DhtLambda<NODE, RESULT>, RESULT> function;
 
-  public DhtLambda(AsyncFunction<DhtLambda<T, R>, R> f) {
+  public DhtLambda(AsyncFunction<DhtLambda<NODE, RESULT>, RESULT> f) {
     this(Serializer.serialize(f));
   }
 
@@ -46,17 +46,17 @@ public class DhtLambda<T extends Serializable, R extends Serializable> implement
     }
   }
 
-  public DhtLambda<T, R> node(DhtNode<T> context) {
+  public DhtLambda<NODE, RESULT> node(NODE context) {
     this.node = context;
     return this;
   }
 
-  public DhtLambda<T, R> msg(Message<byte[]> msg) {
+  public DhtLambda<NODE, RESULT> msg(Message<byte[]> msg) {
     this.msg = msg;
     return this;
   }
 
-  public DhtNode<T> node() {
+  public NODE node() {
     return node;
   }
 
@@ -70,7 +70,7 @@ public class DhtLambda<T extends Serializable, R extends Serializable> implement
 
   public Completable execute() {
     init();
-    PublishSubject<R> result = PublishSubject.create();
+    PublishSubject<RESULT> result = PublishSubject.create();
     
     function.apply(this, r -> {
       result.onCompleted();
