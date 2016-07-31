@@ -133,7 +133,9 @@ public class RVertigoIntegrationTest {
           toSingleDefault(Boolean.TRUE).
           flatMapObservable(v -> rv1.rangeQuery(from, to)).
           subscribe(
-            value -> context.assertTrue(expected.remove(value.getKey())),
+            value -> {
+              context.assertTrue(expected.remove(value.getKey()));
+            },
             e -> context.assertTrue(false, "Exception while handling results: " + e),
             () -> {
               context.assertTrue(expected.isEmpty(), "Is not empty as expected!");

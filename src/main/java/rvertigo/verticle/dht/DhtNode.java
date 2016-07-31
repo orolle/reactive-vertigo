@@ -6,8 +6,10 @@ import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.Message;
 import java.io.Serializable;
+import java.util.concurrent.atomic.AtomicLong;
 import rvertigo.function.AsyncFunction;
 import rvertigo.function.RConsumer;
+import rvertigo.function.SerializableFunc2;
 import rx.Observable;
 import rx.subjects.PublishSubject;
 import rx.subjects.ReplaySubject;
@@ -69,7 +71,7 @@ public class DhtNode<T extends Serializable> {
         result.onNext(ar.succeeded() ? ar.result().body() : hash);
         result.onCompleted();
       });
-    
+
     return replay;
   }
 
@@ -103,6 +105,7 @@ public class DhtNode<T extends Serializable> {
 
   public <NODE extends DhtNode<? extends Serializable>, RESULT extends Serializable> void traverse(Integer start, Integer end,
     RESULT identity,
+    SerializableFunc2<RESULT> resultReducer,
     AsyncFunction<DhtLambda<NODE, RESULT>, RESULT> f,
     RConsumer<AsyncResult<RESULT>> handler) {
     final Integer hash = myHash;
@@ -110,26 +113,51 @@ public class DhtNode<T extends Serializable> {
     byte[] ser = DHT.<NODE, RESULT>managementMessage((lambda, cb) -> {
       final NODE node = lambda.node();
       final Message<byte[]> msg = lambda.msg();
+
       final PublishSubject<RESULT> result = PublishSubject.create();
+      result.
+        reduce(identity, resultReducer).
+        subscribe(r -> {
+          msg.reply(r);
+        }, e -> {
+        }, () -> {
+        });
+
+      AtomicLong counter = new AtomicLong(2);
 
       if ((!start.equals(end) && DHT.isResponsible(start, end, node.myHash))
         || DHT.isResponsible(node, start) || DHT.isResponsible(node, end)) {
-        f.apply(new DhtLambda<>(f).node(node).msg(msg), (RESULT r) -> {
-          msg.reply(r);
-        });
-      }
 
-      if (!hash.equals(node.myHash)) {
-        String addr = DHT.toAddress(node.prefix, node.nextHash);
-        node.vertx.eventBus().send(addr, lambda.serialize(), ar -> {
-          if (ar.succeeded()) {
-            msg.reply(ar.result().body());
-          } else {
-            msg.reply(ar.cause());
+        f.apply(new DhtLambda<>(f).node(node).msg(msg), (RESULT r) -> {
+          result.onNext(r);
+
+          if (counter.decrementAndGet() == 0) {
+            result.onCompleted();
           }
         });
       } else {
-        msg.reply(identity);
+        if (counter.decrementAndGet() == 0) {
+          result.onCompleted();
+        }
+      }
+
+      if (DHT.isResponsible(lambda.node().myHash, end, lambda.node().nextHash)) {
+        String addr = DHT.toAddress(node.prefix, node.nextHash);
+        node.vertx.eventBus().<RESULT>send(addr, lambda.serialize(), ar -> {
+          if (ar.succeeded()) {
+            result.onNext(ar.result().body());
+          } else {
+            result.onError(ar.cause());
+          }
+
+          if (counter.decrementAndGet() == 0) {
+            result.onCompleted();
+          }
+        });
+      } else {
+        if (counter.decrementAndGet() == 0) {
+          result.onCompleted();
+        }
       }
 
     });

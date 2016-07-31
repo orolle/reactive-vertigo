@@ -34,13 +34,6 @@ public class ReactiveVertigo<V extends Serializable> {
     this.node.join(node -> f.accept(this));
     return this;
   }
-
-  public <R extends Serializable> void traverse(Integer start, Integer end, R identity,
-  AsyncFunction<DhtLambda<DhtNode<V>, R>, R> f,
-    RConsumer<AsyncResult<R>> handler) {
-    this.node.traverse(start, end, identity, f, handler);
-  }
-
   public Completable put(Integer key, V value) {
     return this.node.put(key, value);
   }

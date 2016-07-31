@@ -9,10 +9,12 @@ import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.shareddata.Counter;
 import java.io.Serializable;
 import java.util.AbstractMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 import rx.Completable;
 import rx.Observable;
 import rx.subjects.PublishSubject;
@@ -37,16 +39,18 @@ public class DhtMap<T extends Serializable> extends DhtNode<T> {
   public Completable put(Integer key, T value) {
     PublishSubject<Void> result = PublishSubject.<Void>create();
 
-    this.<DhtMap<T>, Boolean>traverse(key, key, true, (lambda, v2) -> {
-      lambda.node().getValues().put(key, value);
-      v2.accept(true);
-    }, ar -> {
-      if (ar.succeeded()) {
-        result.onCompleted();
-      } else {
-        result.onError(ar.cause());
-      }
-    });
+    this.<DhtMap<T>, Boolean>traverse(key, key, Boolean.TRUE,
+      (a, b) -> a && b,
+      (lambda, v2) -> {
+        lambda.node().getValues().put(key, value);
+        v2.accept(Boolean.TRUE);
+      }, ar -> {
+        if (ar.succeeded()) {
+          result.onCompleted();
+        } else {
+          result.onError(ar.cause());
+        }
+      });
 
     return Completable.fromObservable(result);
   }
@@ -57,17 +61,19 @@ public class DhtMap<T extends Serializable> extends DhtNode<T> {
     ReplaySubject<T> replay = ReplaySubject.create();
     result.subscribe(replay);
 
-    this.<DhtMap<T>, T>traverse(key, key, null, (pair, cb) -> {
-      T data = pair.node().getValues().get(key);
-      cb.accept(data);
-    }, (ar) -> {
-      if(ar.succeeded()) {
-        result.onNext(ar.result());
-        result.onCompleted();
-      } else {
-        result.onError(ar.cause());
-      }
-    });
+    this.<DhtMap<T>, T>traverse(key, key, null,
+      (a, b) -> a != null ? a : b != null ? b : null,
+      (pair, cb) -> {
+        T data = pair.node().getValues().get(key);
+        cb.accept(data);
+      }, (ar) -> {
+        if (ar.succeeded()) {
+          result.onNext(ar.result());
+          result.onCompleted();
+        } else {
+          result.onError(ar.cause());
+        }
+      });
 
     return replay;
   }
@@ -79,32 +85,44 @@ public class DhtMap<T extends Serializable> extends DhtNode<T> {
     result.subscribe(replay);
 
     final String address = UUID.randomUUID().toString() + ".data";
+    AtomicLong countResponsed = new AtomicLong(0);
 
     MessageConsumer<JsonObject> consumer = vertx.eventBus().consumer(address, (Message<JsonObject> msg) -> {
       JsonObject o = msg.body();
       result.onNext(new AbstractMap.SimpleEntry<>((Integer) o.getValue("k"), (T) o.getValue("v")));
+      countResponsed.decrementAndGet();
+      if (countResponsed.get() == 0) {
+        result.onCompleted();
+      }
     });
 
-    this.<DhtMap<T>, Boolean>traverse(from, to, Boolean.TRUE, (pair, cb) -> {
-      DhtMap<T> node = pair.node();
-      Observable.from(node.getValues().entrySet()).
+    result.
+      doOnCompleted(() -> consumer.unregister()).
+      subscribe();
+
+    this.<DhtMap<T>, Long>traverse(from, to, 0l,
+      (a, b) -> a + b,
+      (pair, cb) -> {
+        DhtMap<T> node = pair.node();
+        Observable.from(node.getValues().entrySet()).
         filter(e -> DHT.isResponsible(from, to, e.getKey())).
         doOnNext(entry -> node.getVertx().eventBus().
           publish(address, new JsonObject().put("k", entry.getKey()).put("v", entry.getValue()))
         ).
         countLong().
         doOnNext(l -> {
-          // System.out.println("size = "+l);
+          cb.accept(l);
         }).
         doOnError(e -> {
           e.printStackTrace();
         }).
         subscribe();
-    }, reply -> {
-      // System.out.println(reply.result());
-      consumer.unregister();
-      result.onCompleted();
-    });
+      }, reply -> {
+        countResponsed.accumulateAndGet(reply.result(), (a, b) -> a + b);
+        if (countResponsed.get() == 0) {
+          result.onCompleted();
+        }
+      });
 
     return replay;
   }
