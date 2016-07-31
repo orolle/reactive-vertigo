@@ -15,18 +15,20 @@ public interface DHT {
     return buf.toString();
   }
 
+  /*
   public static boolean isResponsible(DhtNode<?> node, Integer hash) {
     return isResponsible(node.myHash, node.nextHash, hash);
   }
+  */
 
-  public static boolean isResponsible(Integer rangeStart, Integer rangeEnd, Integer value) {
+  public static <T extends Comparable<T>> boolean isResponsible(T rangeStart, T rangeEnd, T value) {
     // continued hash range
-    if (rangeStart < rangeEnd) {
-      return rangeStart <= value && rangeEnd > value;
+    if (rangeStart.compareTo(rangeEnd) < 0) {
+      return rangeStart.compareTo(value) <= 0 && rangeEnd.compareTo(value) > 0;
     }
     // discontinued hash range
     else {
-      return rangeStart <= value || rangeEnd > value;
+      return rangeStart.compareTo(value) <= 0 || rangeEnd.compareTo(value) > 0;
     }
   }
 

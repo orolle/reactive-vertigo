@@ -42,14 +42,14 @@ public class DhtNode<T extends Serializable> {
     final Integer hash = this.myHash;
 
     byte[] ser = DHT.managementMessage((lambda, cb) -> {
-      DhtNode<T> context = (DhtNode<T>) lambda.node();
+      DhtNode<T> node = (DhtNode<T>) lambda.node();
       Message<byte[]> msg = lambda.msg();
 
-      if (DHT.isResponsible(context, hash)) {
-        msg.reply(context.nextHash);
-        context.nextHash = hash;
+      if (DHT.isResponsible(node.myHash, node.nextHash, hash)) {
+        msg.reply(node.nextHash);
+        node.nextHash = hash;
       } else {
-        context.vertx.eventBus().send(DHT.toAddress(context.prefix, context.nextHash), msg.body(),
+        node.vertx.eventBus().send(DHT.toAddress(node.prefix, node.nextHash), msg.body(),
           ar -> {
             if (ar.succeeded()) {
               msg.reply(ar.result().body());
@@ -126,7 +126,7 @@ public class DhtNode<T extends Serializable> {
       AtomicLong counter = new AtomicLong(2);
 
       if ((!start.equals(end) && DHT.isResponsible(start, end, node.myHash))
-        || DHT.isResponsible(node, start) || DHT.isResponsible(node, end)) {
+        || DHT.isResponsible(node.myHash, node.nextHash, start) || DHT.isResponsible(node.myHash, node.nextHash, end)) {
 
         f.apply(new DhtLambda<>(f).node(node).msg(msg), (RESULT r) -> {
           result.onNext(r);
