@@ -89,19 +89,19 @@ public class DhtMap<T extends Serializable> extends DhtNode<T> {
       DhtMap<T> node = pair.node();
       Observable.from(node.getValues().entrySet()).
         filter(e -> DHT.isResponsible(from, to, e.getKey())).
-        subscribe(entry -> 
-          node.getVertx().eventBus().publish(address,
-            new JsonObject().
-            put("k", entry.getKey()).
-            put("v", entry.getValue())
-          ),
-          e -> {},
-          () -> {
-            System.out.println("node ["+Integer.toHexString(node.myHash)+"]");
-          }
-        );
+        doOnNext(entry -> node.getVertx().eventBus().
+          publish(address, new JsonObject().put("k", entry.getKey()).put("v", entry.getValue()))
+        ).
+        countLong().
+        doOnNext(l -> {
+          // System.out.println("size = "+l);
+        }).
+        doOnError(e -> {
+          e.printStackTrace();
+        }).
+        subscribe();
     }, reply -> {
-      System.out.println("RECV REPLY");
+      // System.out.println(reply.result());
       consumer.unregister();
       result.onCompleted();
     });

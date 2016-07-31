@@ -21,33 +21,5 @@ public class Bootstrap<T extends Serializable> {
     return this;
   }
 
-  public void bootstrap() {
-    final Integer hash = node.myHash;
-
-    byte[] ser = DHT.managementMessage((lambda, cb) -> {
-      DhtNode<T> context = (DhtNode<T>) lambda.node();
-      Message<byte[]> msg = lambda.msg();
-
-      if (DHT.isResponsible(context, hash)) {
-        msg.reply(context.nextHash);
-        context.nextHash = hash;
-      } else {
-        context.vertx.eventBus().send(DHT.toAddress(context.prefix, context.nextHash), msg.body(),
-          ar -> {
-            if (ar.succeeded()) {
-              msg.reply(ar.result().body());
-            }
-          });
-      }
-
-      cb.accept(null);
-    });
-    
-    node.vertx.eventBus().send(DHT.toAddress(node.prefix, 0),
-      ser,
-      new DeliveryOptions().setSendTimeout(10000),
-      (AsyncResult<Message<Integer>> ar) -> {
-        on.forEach(c -> c.accept(ar.succeeded() ? ar.result().body() : hash));
-      });
-  }
+  
 }
