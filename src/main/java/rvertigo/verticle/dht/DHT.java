@@ -2,7 +2,6 @@ package rvertigo.verticle.dht;
 
 import io.vertx.core.eventbus.Message;
 import java.io.Serializable;
-import org.javatuples.Pair;
 import rvertigo.function.AsyncFunction;
 import rvertigo.function.Serializer;
 

@@ -17,7 +17,6 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import rvertigo.verticle.ReactiveVertigo;
 import rvertigo.verticle.dht.DhtMap;
 import rx.Completable;
 import rx.subjects.PublishSubject;
@@ -27,7 +26,7 @@ import rx.subjects.PublishSubject;
  * @author Oliver Rolle <oliver.rolle@the-urban-institute.de>
  */
 @RunWith(VertxUnitRunner.class)
-public class DhtMapKeyValueTest {
+public class DhtMapStringStringTest {
   
   Vertx vertx;
   DhtMap<String, String> map1, map2, map3;

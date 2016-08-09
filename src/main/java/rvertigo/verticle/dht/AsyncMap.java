@@ -7,7 +7,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
-import org.javatuples.Pair;
 
 public class AsyncMap<K extends Serializable & Comparable<K>, V extends Serializable> implements Serializable {
   private static final long serialVersionUID = 6604642087431893642L;
@@ -39,7 +38,7 @@ public class AsyncMap<K extends Serializable & Comparable<K>, V extends Serializ
     this.values.put(key, value);
 
     if (cbs.containsKey(key)) {
-      cbs.get(key).entrySet().forEach(entry -> entry.getValue().apply(new Pair<>(node, e), v -> {
+      cbs.get(key).entrySet().forEach(entry -> entry.getValue().apply(new AbstractMap.SimpleEntry<>(node, e), v -> {
       }));
     }
   }
@@ -53,7 +52,7 @@ public class AsyncMap<K extends Serializable & Comparable<K>, V extends Serializ
     cbs.get(key).put(callbackKey, cb);
 
     // notify callback of current data
-    cb.apply(new Pair<>(node, new AbstractMap.SimpleEntry<K, V>(key, get(key))), v -> {
+    cb.apply(new AbstractMap.SimpleEntry<>(node, new AbstractMap.SimpleEntry<>(key, get(key))), v -> {
     });
 
     return callbackKey;

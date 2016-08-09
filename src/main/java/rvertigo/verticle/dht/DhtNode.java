@@ -85,7 +85,7 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
     return myHash;
   }
 
-  public KEY getNext() {
+  public KEY getNextIdentity() {
     return this.nextHash;
   }
 
@@ -170,6 +170,6 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
   public String toString() {
     return this.getIdentity().toString() + ": ["
       + this.getIdentity().toString() + "-"
-      + this.getNext().toString() + "]";
+      + this.getNextIdentity().toString() + "]";
   }
 }

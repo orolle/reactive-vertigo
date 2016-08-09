@@ -10,6 +10,7 @@ import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import java.util.HashSet;
+import java.util.Random;
 import java.util.Set;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -19,8 +20,8 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 import org.junit.runner.RunWith;
 import rvertigo.function.RConsumer;
-import rvertigo.verticle.ReactiveVertigo;
 import rvertigo.verticle.dht.DHT;
+import rvertigo.verticle.dht.DhtMap;
 import rx.Completable;
 import rx.subjects.PublishSubject;
 
@@ -29,12 +30,18 @@ import rx.subjects.PublishSubject;
  * @author Oliver Rolle <oliver.rolle@the-urban-institute.de>
  */
 @RunWith(VertxUnitRunner.class)
-public class ReactiveVertigoTest {
+public class DhtMapIntegerIntegerTest {
 
   Vertx vertx;
-  ReactiveVertigo<Integer> rv1, rv2, rv3;
+  DhtMap<Integer, Integer> rv1, rv2, rv3;
 
-  public ReactiveVertigoTest() {
+  Random rand = new Random(10);
+
+  private Integer random() {
+    return rand.nextBoolean() ? rand.nextInt(Integer.MAX_VALUE) : -rand.nextInt(Integer.MAX_VALUE);
+  }
+
+  public DhtMapIntegerIntegerTest() {
   }
 
   @BeforeClass
@@ -48,9 +55,9 @@ public class ReactiveVertigoTest {
   @Before
   public void setUp(TestContext context) {
     vertx = Vertx.vertx();
-    rv1 = new ReactiveVertigo<>(vertx);
-    rv2 = new ReactiveVertigo<>(vertx);
-    rv3 = new ReactiveVertigo<>(vertx);
+    rv1 = new DhtMap<>(vertx, "DhtMap_int_int", random());
+    rv2 = new DhtMap<>(vertx, "DhtMap_int_int", random());
+    rv3 = new DhtMap<>(vertx, "DhtMap_int_int", random());
   }
 
   @After
@@ -70,11 +77,11 @@ public class ReactiveVertigoTest {
   private Completable bootstrapRunner(TestContext context) {
     PublishSubject result = PublishSubject.create();
 
-    rv1.onJoined(r1 -> {
+    rv1.join(r1 -> {
       context.assertTrue(r1 != null);
-      rv2.onJoined(r2 -> {
+      rv2.join(r2 -> {
         context.assertTrue(r2 != null);
-        rv3.onJoined(r3 -> {
+        rv3.join(r3 -> {
           context.assertTrue(r3 != null);
           // System.out.println("BOOTSTRAPED ALL");
           result.onCompleted();
