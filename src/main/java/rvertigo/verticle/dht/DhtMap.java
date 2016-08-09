@@ -84,7 +84,7 @@ public class DhtMap<K extends Serializable & Comparable<K>, T extends Serializab
     ReplaySubject<Map.Entry<K, T>> replay = ReplaySubject.create();
     result.subscribe(replay);
 
-    final String address = UUID.randomUUID().toString() + ".data";
+    final String address = this.prefix + ".data." + UUID.randomUUID().toString();
     AtomicLong countResponsed = new AtomicLong(0);
 
     MessageConsumer<JsonObject> consumer = vertx.eventBus().consumer(address, (Message<JsonObject> msg) -> {

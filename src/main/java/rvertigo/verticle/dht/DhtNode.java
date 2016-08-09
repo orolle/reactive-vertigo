@@ -7,6 +7,7 @@ import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.Message;
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 import rvertigo.function.AsyncFunction;
 import rvertigo.function.RConsumer;
 import rvertigo.function.SerializableFunc2;
@@ -113,31 +114,31 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
       final Message<byte[]> msg = lambda.msg();
 
       final PublishSubject<RESULT> result = PublishSubject.create();
-      result.
-        reduce(identity, resultReducer).
-        subscribe(r -> {
-          msg.reply(r);
-        }, e -> {
-        }, () -> {
-        });
+      result.reduce(identity, resultReducer).
+        subscribe(
+          r -> msg.reply(r),
+          e -> msg.reply(e),
+          () -> {
+          });
 
-      AtomicLong counter = new AtomicLong(2);
+      AtomicLong requestCounter = new AtomicLong(2);
+      Runnable requestProcessed = () -> {
+        if (requestCounter.decrementAndGet() == 0) {
+          result.onCompleted();
+        }
+      };
 
-      if ((!start.equals(end) && 
-        DHT.isResponsible(start, end, node.myHash))
-        || DHT.isResponsible(node.myHash, node.nextHash, start) || DHT.isResponsible(node.myHash, node.nextHash, end)) {
+      if ((!start.equals(end) && DHT.isResponsible(start, end, node.myHash))
+        || DHT.isResponsible(node.myHash, node.nextHash, start)
+        || DHT.isResponsible(node.myHash, node.nextHash, end)) {
 
         f.apply(new DhtLambda<>(f).node(node).msg(msg), (RESULT r) -> {
           result.onNext(r);
 
-          if (counter.decrementAndGet() == 0) {
-            result.onCompleted();
-          }
+          requestProcessed.run();
         });
       } else {
-        if (counter.decrementAndGet() == 0) {
-          result.onCompleted();
-        }
+        requestProcessed.run();
       }
 
       if (!node.nextHash.equals(startHash)) {
@@ -149,17 +150,13 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
             result.onError(ar.cause());
           }
 
-          if (counter.decrementAndGet() == 0) {
-            result.onCompleted();
-          }
+          requestProcessed.run();
         });
       } else {
-        if (counter.decrementAndGet() == 0) {
-          result.onCompleted();
-        }
+        requestProcessed.run();
       }
     });
-    
+
     vertx.eventBus().send(DHT.toAddress(prefix, myHash), ser, (AsyncResult<Message<RESULT>> ar) -> {
       if (ar.succeeded()) {
         handler.accept(Future.succeededFuture(ar.result().body()));
