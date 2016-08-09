@@ -120,8 +120,8 @@ public class DhtMapKeyValueTest {
     String from = "A";
     String to = "i"; // So that y is inculuded in the query range
     
-    context.assertTrue(from.compareTo(x) < 0);
-    context.assertTrue(from.compareTo(y) < 0);
+    context.assertTrue(from.compareTo(x) <= 0);
+    context.assertTrue(from.compareTo(y) <= 0);
     context.assertTrue(to.compareTo(x) > 0);
     context.assertTrue(to.compareTo(y) > 0);
     
@@ -134,7 +134,6 @@ public class DhtMapKeyValueTest {
           flatMapObservable(v -> map1.rangeQuery(from, to)).
           subscribe(
             value -> {
-              System.out.println(value);
               context.assertTrue(expected.remove(value.getKey()));
             },
             e -> context.assertTrue(false, "Exception while handling results: " + e),

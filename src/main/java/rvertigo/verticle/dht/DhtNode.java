@@ -76,8 +76,6 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
   }
 
   protected void onBootstraped() {
-    // System.out.println("register node " + Integer.toHexString(myHash) + " to " + DHT.toAddress(prefix, 0));
-    // System.out.println("register node " + Integer.toHexString(myHash)  + " to " + DHT.toAddress(prefix, myHash));
     vertx.eventBus().consumer(DHT.toAddress(prefix, 0), (Message<byte[]> msg) -> processManagementMessage(msg));
     vertx.eventBus().consumer(DHT.toAddress(prefix, myHash), (Message<byte[]> msg) -> processManagementMessage(msg));
   }
@@ -108,7 +106,7 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
     SerializableFunc2<RESULT> resultReducer,
     AsyncFunction<DhtLambda<NODE, RESULT>, RESULT> f,
     RConsumer<AsyncResult<RESULT>> handler) {
-    final KEY hash = myHash;
+    final KEY startHash = myHash;
 
     byte[] ser = DHT.<NODE, RESULT>managementMessage((lambda, cb) -> {
       final NODE node = lambda.node();
@@ -142,7 +140,7 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
         }
       }
 
-      if (DHT.isResponsible(lambda.node().myHash, end, lambda.node().nextHash)) {
+      if (!node.nextHash.equals(startHash)) {
         String addr = DHT.toAddress(node.prefix, node.nextHash);
         node.vertx.eventBus().<RESULT>send(addr, lambda.serialize(), ar -> {
           if (ar.succeeded()) {
@@ -160,11 +158,9 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
           result.onCompleted();
         }
       }
-
     });
-
-    // System.out.println("send node " + Integer.toHexString(myHash)  + " to " + DHT.toAddress(prefix, nextHash));
-    vertx.eventBus().send(DHT.toAddress(prefix, nextHash), ser, (AsyncResult<Message<RESULT>> ar) -> {
+    
+    vertx.eventBus().send(DHT.toAddress(prefix, myHash), ser, (AsyncResult<Message<RESULT>> ar) -> {
       if (ar.succeeded()) {
         handler.accept(Future.succeededFuture(ar.result().body()));
       } else {

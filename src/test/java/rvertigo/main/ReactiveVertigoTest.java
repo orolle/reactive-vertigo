@@ -125,6 +125,11 @@ public class ReactiveVertigoTest {
     Integer from = y;
     Integer to = z + 1; // So that z is inculuded in the query range
 
+    context.assertTrue(from.compareTo(y) <= 0);
+    context.assertTrue(from.compareTo(z) <= 0);
+    context.assertTrue(to.compareTo(y) > 0);
+    context.assertTrue(to.compareTo(z) > 0);
+
     bootstrapRunner(context).
       subscribe(() -> {
         rv1.put(x, x).

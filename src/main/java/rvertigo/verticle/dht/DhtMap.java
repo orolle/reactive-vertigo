@@ -101,7 +101,9 @@ public class DhtMap<K extends Serializable & Comparable<K>, T extends Serializab
       subscribe();
 
     this.<DhtMap<K, T>, Long>traverse(from, to, 0l,
-      (a, b) -> a + b,
+      (a, b) -> {
+        return a + b;
+      },
       (pair, cb) -> {
         DhtMap<K, T> node = pair.node();
         Observable.from(node.getValues().entrySet()).
@@ -118,8 +120,7 @@ public class DhtMap<K extends Serializable & Comparable<K>, T extends Serializab
         }).
         subscribe();
       }, reply -> {
-        countResponsed.accumulateAndGet(reply.result(), (a, b) -> a + b);
-        System.out.println("count = "+countResponsed.get());
+        long count = countResponsed.accumulateAndGet(reply.result(), (a, b) -> a + b);
         if (countResponsed.get() == 0) {
           result.onCompleted();
         }
