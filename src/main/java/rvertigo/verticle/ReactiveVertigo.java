@@ -19,7 +19,7 @@ import rx.Observable;
 import rx.Single;
 
 public class ReactiveVertigo<V extends Serializable> {
-  protected final DhtMap<V> node;
+  protected final DhtMap<Integer, V> node;
   //protected DhtNode<LazyReact> noder;
   protected final Vertx vertx;
 
@@ -27,7 +27,7 @@ public class ReactiveVertigo<V extends Serializable> {
 
   public ReactiveVertigo(Vertx vertx) {
     this.vertx = vertx;
-    this.node = new DhtMap<V>(vertx, "DhtNode", random());
+    this.node = new DhtMap<Integer, V>(vertx, "DhtNode", random());
   }
 
   public ReactiveVertigo onJoined(RConsumer<ReactiveVertigo> f) {
@@ -58,7 +58,7 @@ public class ReactiveVertigo<V extends Serializable> {
     return r;
   }
   
-  public DhtNode<V> getDhtNode() {
+  public DhtNode<Integer, V> getDhtNode() {
     return this.node;
   }
 }

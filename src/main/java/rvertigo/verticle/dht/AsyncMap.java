@@ -11,7 +11,7 @@ import org.javatuples.Pair;
 
 public class AsyncMap<K extends Serializable & Comparable<K>, V extends Serializable> implements Serializable {
   private static final long serialVersionUID = 6604642087431893642L;
-  protected transient final DhtNode<V> node;
+  protected transient final DhtNode<K, V> node;
 
   protected final TreeMap<K, V> values;
   protected final TreeMap<K, Map<Integer, AsyncMapCallback<K, V>>> cbs;
@@ -23,7 +23,7 @@ public class AsyncMap<K extends Serializable & Comparable<K>, V extends Serializ
     }
   };
 
-  public AsyncMap(DhtNode<V> node) {
+  public AsyncMap(DhtNode<K, V> node) {
     super();
     this.node = node;
     this.values = new TreeMap<>(comparator);

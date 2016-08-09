@@ -5,7 +5,7 @@ import java.util.Map.Entry;
 import org.javatuples.Pair;
 import rvertigo.function.AsyncFunction;
 
-public interface AsyncMapCallback<K extends Comparable<K>, V extends Serializable>
-  extends AsyncFunction<Pair<DhtNode<V>, Entry<K, V>>, Void> {
+public interface AsyncMapCallback<K extends Serializable & Comparable<K>, V extends Serializable>
+  extends AsyncFunction<Pair<DhtNode<K, V>, Entry<K, V>>, Void> {
 
 }

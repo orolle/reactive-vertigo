@@ -9,9 +9,9 @@ import rvertigo.function.Serializer;
 
 public interface DHT {
 
-  public static String toAddress(String prefix, Integer hash) {
+  public static String toAddress(String prefix, Object hash) {
     final StringBuffer buf = new StringBuffer();
-    buf.append(prefix).append(".").append(Integer.toHexString(hash));
+    buf.append(prefix).append(".").append(Integer.toHexString(hash.hashCode()));
     return buf.toString();
   }
 

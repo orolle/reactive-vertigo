@@ -14,35 +14,35 @@ import rx.Observable;
 import rx.subjects.PublishSubject;
 import rx.subjects.ReplaySubject;
 
-public class DhtNode<T extends Serializable> {
+public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends Serializable> {
 
   protected final Vertx vertx;
   protected final String prefix;
-  protected final Integer myHash;
-  protected Integer nextHash;
+  protected final KEY myHash;
+  protected KEY nextHash;
 
-  public DhtNode(Vertx vertx, String prefix, Integer myHash) {
+  public DhtNode(Vertx vertx, String prefix, KEY myHash) {
     this.vertx = vertx;
     this.prefix = prefix;
     this.myHash = myHash;
     this.nextHash = myHash;
   }
 
-  public DhtNode<T> join(RConsumer<DhtNode<T>> joined) {
+  public DhtNode<KEY, VALUE> join(RConsumer<DhtNode<KEY, VALUE>> joined) {
     bootstrap().
       doOnNext(nextHash -> this.nextHash = nextHash).
-      doOnNext(nextHash -> onBootstraped()).
-      doOnNext(nextHash -> joined.accept(this)).
+      doOnCompleted(() -> onBootstraped()).
+      doOnCompleted(() -> joined.accept(this)).
       subscribe();
 
     return this;
   }
 
-  public Observable<Integer> bootstrap() {
-    final Integer hash = this.myHash;
+  public Observable<KEY> bootstrap() {
+    final KEY hash = this.myHash;
 
     byte[] ser = DHT.managementMessage((lambda, cb) -> {
-      DhtNode<T> node = (DhtNode<T>) lambda.node();
+      DhtNode<KEY, VALUE> node = (DhtNode<KEY, VALUE>) lambda.node();
       Message<byte[]> msg = lambda.msg();
 
       if (DHT.isResponsible(node.myHash, node.nextHash, hash)) {
@@ -60,14 +60,14 @@ public class DhtNode<T extends Serializable> {
       cb.accept(null);
     });
 
-    PublishSubject<Integer> result = PublishSubject.create();
-    ReplaySubject<Integer> replay = ReplaySubject.create();
+    PublishSubject<KEY> result = PublishSubject.create();
+    ReplaySubject<KEY> replay = ReplaySubject.create();
     result.subscribe(replay);
 
     this.vertx.eventBus().send(DHT.toAddress(this.prefix, 0),
       ser,
       new DeliveryOptions().setSendTimeout(10000),
-      (AsyncResult<Message<Integer>> ar) -> {
+      (AsyncResult<Message<KEY>> ar) -> {
         result.onNext(ar.succeeded() ? ar.result().body() : hash);
         result.onCompleted();
       });
@@ -82,11 +82,11 @@ public class DhtNode<T extends Serializable> {
     vertx.eventBus().consumer(DHT.toAddress(prefix, myHash), (Message<byte[]> msg) -> processManagementMessage(msg));
   }
 
-  public Integer getIdentity() {
+  public KEY getIdentity() {
     return myHash;
   }
 
-  public Integer getNext() {
+  public KEY getNext() {
     return this.nextHash;
   }
 
@@ -95,7 +95,7 @@ public class DhtNode<T extends Serializable> {
   }
 
   protected void processManagementMessage(Message<byte[]> msg) {
-    DhtLambda<DhtNode<T>, ? extends Serializable> l = new DhtLambda<>(msg.body());
+    DhtLambda<DhtNode<KEY, VALUE>, ? extends Serializable> l = new DhtLambda<>(msg.body());
     l.node(this);
     l.msg(msg);
 
@@ -103,12 +103,12 @@ public class DhtNode<T extends Serializable> {
       subscribe();
   }
 
-  public <NODE extends DhtNode<? extends Serializable>, RESULT extends Serializable> void traverse(Integer start, Integer end,
+  public <NODE extends DhtNode<KEY, VALUE>, RESULT extends Serializable> void traverse(KEY start, KEY end,
     RESULT identity,
     SerializableFunc2<RESULT> resultReducer,
     AsyncFunction<DhtLambda<NODE, RESULT>, RESULT> f,
     RConsumer<AsyncResult<RESULT>> handler) {
-    final Integer hash = myHash;
+    final KEY hash = myHash;
 
     byte[] ser = DHT.<NODE, RESULT>managementMessage((lambda, cb) -> {
       final NODE node = lambda.node();
@@ -125,7 +125,8 @@ public class DhtNode<T extends Serializable> {
 
       AtomicLong counter = new AtomicLong(2);
 
-      if ((!start.equals(end) && DHT.isResponsible(start, end, node.myHash))
+      if ((!start.equals(end) && 
+        DHT.isResponsible(start, end, node.myHash))
         || DHT.isResponsible(node.myHash, node.nextHash, start) || DHT.isResponsible(node.myHash, node.nextHash, end)) {
 
         f.apply(new DhtLambda<>(f).node(node).msg(msg), (RESULT r) -> {
@@ -174,8 +175,8 @@ public class DhtNode<T extends Serializable> {
 
   @Override
   public String toString() {
-    return Integer.toHexString(this.getIdentity()) + ": ["
-      + Integer.toHexString(this.getIdentity()) + "-"
-      + Integer.toHexString(this.getNext()) + "]";
+    return this.getIdentity().toString() + ": ["
+      + this.getIdentity().toString() + "-"
+      + this.getNext().toString() + "]";
   }
 }
