@@ -55,11 +55,8 @@ public class DhtMap<K extends Serializable & Comparable<K>, T extends Serializab
   }
 
   public Observable<T> get(K key) {
-    PublishSubject<T> result = PublishSubject.create();
-
-    ReplaySubject<T> replay = ReplaySubject.create();
-    result.subscribe(replay);
-
+    ReplaySubject<T> result = ReplaySubject.create();
+    
     this.<DhtMap<K, T>, T>traverse(key, key, null,
       (a, b) -> a != null ? a : b != null ? b : null,
       (pair, cb) -> {
@@ -74,14 +71,11 @@ public class DhtMap<K extends Serializable & Comparable<K>, T extends Serializab
         }
       });
 
-    return replay;
+    return result;
   }
 
   public Observable<Map.Entry<K, T>> rangeQuery(K from, K to) {
-    PublishSubject<Map.Entry<K, T>> result = PublishSubject.<Map.Entry<K, T>>create();
-
-    ReplaySubject<Map.Entry<K, T>> replay = ReplaySubject.create();
-    result.subscribe(replay);
+    ReplaySubject<Map.Entry<K, T>> result = ReplaySubject.create();
 
     final String address = this.prefix + ".data." + UUID.randomUUID().toString();
     AtomicLong countResponsed = new AtomicLong(0);
@@ -125,6 +119,6 @@ public class DhtMap<K extends Serializable & Comparable<K>, T extends Serializab
         }
       });
 
-    return replay;
+    return result;
   }
 }
