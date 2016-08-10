@@ -5,9 +5,9 @@
  */
 package rvertigo.verticle.dht;
 
-import io.vertx.core.Vertx;
-import io.vertx.core.eventbus.Message;
-import io.vertx.core.eventbus.MessageConsumer;
+import io.vertx.rxjava.core.Vertx;
+import io.vertx.rxjava.core.eventbus.Message;
+import io.vertx.rxjava.core.eventbus.MessageConsumer;
 import io.vertx.core.json.JsonObject;
 import java.io.Serializable;
 import java.util.AbstractMap;

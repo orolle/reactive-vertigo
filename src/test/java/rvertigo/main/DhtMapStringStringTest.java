@@ -5,7 +5,7 @@
  */
 package rvertigo.main;
 
-import io.vertx.core.Vertx;
+import io.vertx.rxjava.core.Vertx;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;

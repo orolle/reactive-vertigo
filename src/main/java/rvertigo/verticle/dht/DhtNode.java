@@ -2,15 +2,19 @@ package rvertigo.verticle.dht;
 
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
-import io.vertx.core.Vertx;
+import io.vertx.rxjava.core.Vertx;
 import io.vertx.core.eventbus.DeliveryOptions;
-import io.vertx.core.eventbus.Message;
+import io.vertx.rxjava.core.eventbus.Message;
+import io.vertx.rxjava.core.eventbus.MessageConsumer;
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 import rvertigo.function.AsyncFunction;
 import rvertigo.function.RConsumer;
 import rvertigo.function.SerializableFunc2;
 import rx.Observable;
+import rx.functions.Action0;
+import rx.functions.Action1;
 import rx.subjects.PublishSubject;
 import rx.subjects.ReplaySubject;
 
@@ -20,6 +24,11 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
   protected final String prefix;
   protected final KEY myHash;
   protected KEY nextHash;
+  
+  protected final DeliveryOptions deliveryOptions = new DeliveryOptions().setSendTimeout(10000);
+  
+  protected MessageConsumer<byte[]> broadcastConsumer;
+  protected MessageConsumer<byte[]> nodeConsumer;
 
   public DhtNode(Vertx vertx, String prefix, KEY myHash) {
     this.vertx = vertx;
@@ -61,21 +70,43 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
     });
 
     ReplaySubject<KEY> result = ReplaySubject.create();
-    
+
     this.vertx.eventBus().send(DHT.toAddress(this.prefix, 0),
       ser,
-      new DeliveryOptions().setSendTimeout(10000),
+      deliveryOptions,
       (AsyncResult<Message<KEY>> ar) -> {
         result.onNext(ar.succeeded() ? ar.result().body() : hash);
         result.onCompleted();
       });
-
+    
     return result;
+    /*
+    return this.vertx.eventBus().
+      <KEY>sendObservable(DHT.toAddress(this.prefix, 0), ser, deliveryOptions).
+      map(msg -> msg.body());
+*/
   }
 
   protected void onBootstraped() {
-    vertx.eventBus().consumer(DHT.toAddress(prefix, 0), (Message<byte[]> msg) -> processManagementMessage(msg));
-    vertx.eventBus().consumer(DHT.toAddress(prefix, myHash), (Message<byte[]> msg) -> processManagementMessage(msg));
+    Action1<Throwable> processException = e -> {
+      e.printStackTrace();
+    };
+    Action0 processCompleted = () -> {
+    };
+
+    broadcastConsumer = vertx.eventBus().consumer(DHT.toAddress(prefix, 0));
+    broadcastConsumer.toObservable().
+      subscribe(
+        msg -> processManagementMessage(msg),
+        processException,
+        processCompleted);
+
+    nodeConsumer = vertx.eventBus().consumer(DHT.toAddress(prefix, myHash));
+    nodeConsumer.toObservable().
+      subscribe(
+        msg -> processManagementMessage(msg),
+        processException,
+        processCompleted);
   }
 
   public KEY getIdentity() {
