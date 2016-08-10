@@ -36,42 +36,22 @@ public class DhtMap<K extends Serializable & Comparable<K>, T extends Serializab
   }
 
   public Completable put(K key, T value) {
-    PublishSubject<Void> result = PublishSubject.<Void>create();
-
-    this.<DhtMap<K, T>, Boolean>traverse(key, key, Boolean.TRUE,
+    return this.<DhtMap<K, T>, Boolean>traverse(key, key, Boolean.TRUE,
       (a, b) -> a && b,
       (lambda, v2) -> {
         lambda.node().getValues().put(key, value);
         v2.accept(Boolean.TRUE);
-      }, ar -> {
-        if (ar.succeeded()) {
-          result.onCompleted();
-        } else {
-          result.onError(ar.cause());
-        }
-      });
-
-    return Completable.fromObservable(result);
+      }).
+      toCompletable();
   }
 
   public Observable<T> get(K key) {
-    ReplaySubject<T> result = ReplaySubject.create();
-    
-    this.<DhtMap<K, T>, T>traverse(key, key, null,
+    return this.<DhtMap<K, T>, T>traverse(key, key, null,
       (a, b) -> a != null ? a : b != null ? b : null,
       (pair, cb) -> {
         T data = pair.node().getValues().get(key);
         cb.accept(data);
-      }, (ar) -> {
-        if (ar.succeeded()) {
-          result.onNext(ar.result());
-          result.onCompleted();
-        } else {
-          result.onError(ar.cause());
-        }
       });
-
-    return result;
   }
 
   public Observable<Map.Entry<K, T>> rangeQuery(K from, K to) {
@@ -105,18 +85,19 @@ public class DhtMap<K extends Serializable & Comparable<K>, T extends Serializab
           publish(address, new JsonObject().put("k", entry.getKey()).put("v", entry.getValue()))
         ).
         countLong().
-        doOnNext(l -> {
+        subscribe(l -> {
           cb.accept(l);
-        }).
-        doOnError(e -> {
+        }, e -> {
           e.printStackTrace();
-        }).
-        subscribe();
-      }, reply -> {
-        long count = countResponsed.accumulateAndGet(reply.result(), (a, b) -> a + b);
+        });
+      }).
+      subscribe(l -> {
+        long count = countResponsed.accumulateAndGet(l, (a, b) -> a + b);
         if (countResponsed.get() == 0) {
           result.onCompleted();
         }
+      }, e -> {
+        e.printStackTrace();
       });
 
     return result;

@@ -13,6 +13,7 @@ import rvertigo.function.AsyncFunction;
 import rvertigo.function.RConsumer;
 import rvertigo.function.SerializableFunc2;
 import rx.Observable;
+import rx.Single;
 import rx.functions.Action0;
 import rx.functions.Action1;
 import rx.subjects.PublishSubject;
@@ -58,33 +59,18 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
         msg.reply(node.nextHash);
         node.nextHash = hash;
       } else {
-        node.vertx.eventBus().send(DHT.toAddress(node.prefix, node.nextHash), msg.body(),
-          ar -> {
-            if (ar.succeeded()) {
-              msg.reply(ar.result().body());
-            }
-          });
+        node.vertx.eventBus().
+          <KEY>sendObservable(DHT.toAddress(node.prefix, node.nextHash), msg.body(), node.deliveryOptions).
+          subscribe(reply -> msg.reply(reply.body()));
       }
 
       cb.accept(null);
     });
-
-    ReplaySubject<KEY> result = ReplaySubject.create();
-
-    this.vertx.eventBus().send(DHT.toAddress(this.prefix, 0),
-      ser,
-      deliveryOptions,
-      (AsyncResult<Message<KEY>> ar) -> {
-        result.onNext(ar.succeeded() ? ar.result().body() : hash);
-        result.onCompleted();
-      });
     
-    return result;
-    /*
     return this.vertx.eventBus().
       <KEY>sendObservable(DHT.toAddress(this.prefix, 0), ser, deliveryOptions).
-      map(msg -> msg.body());
-*/
+      map(msg -> msg.body()).
+      onErrorResumeNext(e -> Observable.just(hash));
   }
 
   protected void onBootstraped() {
@@ -130,11 +116,10 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
       subscribe();
   }
 
-  public <NODE extends DhtNode<KEY, VALUE>, RESULT extends Serializable> void traverse(KEY start, KEY end,
+  public <NODE extends DhtNode<KEY, VALUE>, RESULT extends Serializable> Observable<RESULT> traverse(KEY start, KEY end,
     RESULT identity,
     SerializableFunc2<RESULT> resultReducer,
-    AsyncFunction<DhtLambda<NODE, RESULT>, RESULT> f,
-    RConsumer<AsyncResult<RESULT>> handler) {
+    AsyncFunction<DhtLambda<NODE, RESULT>, RESULT> f) {
     final KEY startHash = myHash;
 
     byte[] ser = DHT.<NODE, RESULT>managementMessage((lambda, cb) -> {
@@ -184,14 +169,9 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
         requestProcessed.run();
       }
     });
-
-    vertx.eventBus().send(DHT.toAddress(prefix, myHash), ser, (AsyncResult<Message<RESULT>> ar) -> {
-      if (ar.succeeded()) {
-        handler.accept(Future.succeededFuture(ar.result().body()));
-      } else {
-        handler.accept(Future.failedFuture(ar.cause()));
-      }
-    });
+    
+    return vertx.eventBus().<RESULT>sendObservable(DHT.toAddress(prefix, myHash), ser, deliveryOptions).
+      map(msg -> msg.body());
   }
 
   @Override
