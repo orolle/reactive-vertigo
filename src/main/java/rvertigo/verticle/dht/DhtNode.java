@@ -156,15 +156,13 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
 
       if (!node.nextHash.equals(startHash)) {
         String addr = DHT.toAddress(node.prefix, node.nextHash);
-        node.vertx.eventBus().<RESULT>send(addr, lambda.serialize(), ar -> {
-          if (ar.succeeded()) {
-            result.onNext(ar.result().body());
-          } else {
-            result.onError(ar.cause());
-          }
-
-          requestProcessed.run();
-        });
+        node.vertx.eventBus().<RESULT>sendObservable(addr, lambda.serialize(), node.deliveryOptions).
+          subscribe(
+            msg1 -> result.onNext(msg1.body()),
+            e -> result.onError(e),
+            () -> requestProcessed.run()
+          );
+          
       } else {
         requestProcessed.run();
       }
