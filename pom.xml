@@ -11,25 +11,16 @@
   </properties>
 
   <dependencies>
+    <!-- https://mvnrepository.com/artifact/io.vertx/vertx-rx-java -->
     <dependency>
       <groupId>io.vertx</groupId>
-      <artifactId>vertx-core</artifactId>
-      <version>3.0.0</version>
-    </dependency>
-    <dependency>
-      <groupId>io.vertx</groupId>
-      <artifactId>vertx-reactive-streams</artifactId>
-      <version>3.0.0</version>
-    </dependency>
-    <dependency>
-      <groupId>io.reactivex</groupId>
-      <artifactId>rxjava</artifactId>
-      <version>1.1.5</version>
+      <artifactId>vertx-rx-java</artifactId>
+      <version>3.3.2</version>
     </dependency>
     <dependency>
       <groupId>io.vertx</groupId>
       <artifactId>vertx-unit</artifactId>
-      <version>3.0.0</version>
+      <version>3.3.2</version>
       <scope>test</scope>
     </dependency>
     <dependency>

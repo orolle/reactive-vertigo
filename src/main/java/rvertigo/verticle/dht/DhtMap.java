@@ -9,7 +9,6 @@ import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.shareddata.Counter;
 import java.io.Serializable;
 import java.util.AbstractMap;
 import java.util.Map;

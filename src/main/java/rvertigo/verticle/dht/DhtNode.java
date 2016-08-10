@@ -7,7 +7,6 @@ import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.Message;
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Consumer;
 import rvertigo.function.AsyncFunction;
 import rvertigo.function.RConsumer;
 import rvertigo.function.SerializableFunc2;
@@ -43,7 +42,7 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
     final KEY hash = this.myHash;
 
     byte[] ser = DHT.managementMessage((lambda, cb) -> {
-      DhtNode<KEY, VALUE> node = (DhtNode<KEY, VALUE>) lambda.node();
+      DhtNode<KEY, VALUE> node = lambda.node();
       Message<byte[]> msg = lambda.msg();
 
       if (DHT.isResponsible(node.myHash, node.nextHash, hash)) {
@@ -61,10 +60,8 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
       cb.accept(null);
     });
 
-    PublishSubject<KEY> result = PublishSubject.create();
-    ReplaySubject<KEY> replay = ReplaySubject.create();
-    result.subscribe(replay);
-
+    ReplaySubject<KEY> result = ReplaySubject.create();
+    
     this.vertx.eventBus().send(DHT.toAddress(this.prefix, 0),
       ser,
       new DeliveryOptions().setSendTimeout(10000),
@@ -73,7 +70,7 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
         result.onCompleted();
       });
 
-    return replay;
+    return result;
   }
 
   protected void onBootstraped() {

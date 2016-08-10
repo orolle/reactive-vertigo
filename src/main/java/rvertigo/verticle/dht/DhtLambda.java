@@ -2,18 +2,10 @@ package rvertigo.verticle.dht;
 
 import io.vertx.core.eventbus.Message;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
-import org.reactivestreams.Processor;
-import org.reactivestreams.Subscriber;
-import org.reactivestreams.Subscription;
 import rvertigo.function.AsyncFunction;
-import rvertigo.function.RConsumer;
 import rvertigo.function.Serializer;
 import rx.Completable;
-import rx.Observable;
 import rx.subjects.PublishSubject;
-import rx.subjects.ReplaySubject;
 
 public class DhtLambda<NODE, RESULT extends Serializable> implements Serializable {
 
@@ -56,8 +48,8 @@ public class DhtLambda<NODE, RESULT extends Serializable> implements Serializabl
     return this;
   }
 
-  public NODE node() {
-    return node;
+  public <T extends NODE> T node() {
+    return (T) node;
   }
 
   public Message<byte[]> msg() {

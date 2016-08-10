@@ -4,7 +4,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import rvertigo.verticle.dht.DhtLambda;
 
 public interface Serializer {
   public static final byte[] EMPTY = new byte[] {};
