@@ -5,10 +5,10 @@
  */
 package rvertigo.main;
 
-import io.vertx.rxjava.core.Vertx;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import io.vertx.rxjava.core.Vertx;
 import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;

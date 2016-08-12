@@ -5,10 +5,10 @@
  */
 package rvertigo.verticle.dht;
 
+import io.vertx.core.json.JsonObject;
 import io.vertx.rxjava.core.Vertx;
 import io.vertx.rxjava.core.eventbus.Message;
 import io.vertx.rxjava.core.eventbus.MessageConsumer;
-import io.vertx.core.json.JsonObject;
 import java.io.Serializable;
 import java.util.AbstractMap;
 import java.util.Map;
@@ -16,7 +16,6 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import rx.Completable;
 import rx.Observable;
-import rx.subjects.PublishSubject;
 import rx.subjects.ReplaySubject;
 
 /**

@@ -1,23 +1,18 @@
 package rvertigo.verticle.dht;
 
-import io.vertx.core.AsyncResult;
-import io.vertx.core.Future;
-import io.vertx.rxjava.core.Vertx;
 import io.vertx.core.eventbus.DeliveryOptions;
+import io.vertx.rxjava.core.Vertx;
 import io.vertx.rxjava.core.eventbus.Message;
 import io.vertx.rxjava.core.eventbus.MessageConsumer;
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Consumer;
 import rvertigo.function.AsyncFunction;
 import rvertigo.function.RConsumer;
 import rvertigo.function.SerializableFunc2;
 import rx.Observable;
-import rx.Single;
 import rx.functions.Action0;
 import rx.functions.Action1;
 import rx.subjects.PublishSubject;
-import rx.subjects.ReplaySubject;
 
 public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends Serializable> {
 
