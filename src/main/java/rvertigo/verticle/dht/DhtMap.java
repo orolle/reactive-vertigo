@@ -13,9 +13,13 @@ import java.io.Serializable;
 import java.util.AbstractMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+import rvertigo.function.Serializer;
 import rx.Completable;
 import rx.Observable;
+import rx.Single;
 import rx.subjects.ReplaySubject;
 
 /**
@@ -34,14 +38,13 @@ public class DhtMap<K extends Serializable & Comparable<K>, T extends Serializab
     return this.values;
   }
 
-  public Completable put(K key, T value) {
+  public Observable<Boolean> put(K key, T value) {
     return this.<DhtMap<K, T>, Boolean>traverse(key, key, Boolean.TRUE,
       (a, b) -> a && b,
       (lambda, v2) -> {
         lambda.node().getValues().put(key, value);
         v2.accept(Boolean.TRUE);
-      }).
-      toCompletable();
+      });
   }
 
   public Observable<T> get(K key) {
@@ -54,23 +57,27 @@ public class DhtMap<K extends Serializable & Comparable<K>, T extends Serializab
   }
 
   public Observable<Map.Entry<K, T>> rangeQuery(K from, K to) {
-    ReplaySubject<Map.Entry<K, T>> result = ReplaySubject.create();
+    System.out.println("rangeQuery()");
 
     final String address = this.prefix + ".data." + UUID.randomUUID().toString();
+
+    ReplaySubject<Map.Entry<K, T>> result = ReplaySubject.create();
     AtomicLong countResponsed = new AtomicLong(0);
+    AtomicReference<Runnable> checkComplete = new AtomicReference<>();
 
     MessageConsumer<JsonObject> consumer = vertx.eventBus().consumer(address, (Message<JsonObject> msg) -> {
       JsonObject o = msg.body();
+      System.out.println("rangeQuery: " + o);
       result.onNext(new AbstractMap.SimpleEntry<>((K) o.getValue("k"), (T) o.getValue("v")));
       countResponsed.decrementAndGet();
-      if (countResponsed.get() == 0) {
-        result.onCompleted();
-      }
+      checkComplete.get().run();
     });
 
-    result.
-      doOnCompleted(() -> consumer.unregister()).
-      subscribe();
+    checkComplete.set(() -> {
+      if (countResponsed.get() == 0) {
+        consumer.unregister();
+      }
+    });
 
     this.<DhtMap<K, T>, Long>traverse(from, to, 0l,
       (a, b) -> {
@@ -80,11 +87,14 @@ public class DhtMap<K extends Serializable & Comparable<K>, T extends Serializab
         DhtMap<K, T> node = pair.node();
         Observable.from(node.getValues().entrySet()).
         filter(e -> DHT.isResponsible(from, to, e.getKey())).
-        doOnNext(entry -> node.getVertx().eventBus().
-          publish(address, new JsonObject().put("k", entry.getKey()).put("v", entry.getValue()))
-        ).
+        doOnNext(entry -> {
+          System.out.println(pair.node().myself().myself() + " PUBLISH " + new JsonObject().put("k", entry.getKey()).put("v", entry.getValue()));
+          node.getVertx().eventBus().
+            publish(address, new JsonObject().put("k", entry.getKey()).put("v", entry.getValue()));
+        }).
         countLong().
         subscribe(l -> {
+          System.out.println(pair.node().myself().myself() + ": NEXT count = " + l);
           cb.accept(l);
         }, e -> {
           e.printStackTrace();
@@ -92,13 +102,16 @@ public class DhtMap<K extends Serializable & Comparable<K>, T extends Serializab
       }).
       subscribe(l -> {
         long count = countResponsed.accumulateAndGet(l, (a, b) -> a + b);
-        if (countResponsed.get() == 0) {
-          result.onCompleted();
-        }
+        System.out.println(this.myself().myself() + ": NODE count = " + count);
+        checkComplete.get().run();
       }, e -> {
         e.printStackTrace();
       });
 
-    return result;
+    return result.doOnSubscribe(() -> {
+      if (countResponsed.get() == 0 && !result.hasCompleted()) {
+        result.onCompleted();
+      }
+    });
   }
 }

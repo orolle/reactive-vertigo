@@ -6,9 +6,15 @@ import io.vertx.rxjava.core.eventbus.Message;
 import io.vertx.rxjava.core.eventbus.MessageConsumer;
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import rvertigo.function.AsyncFunction;
 import rvertigo.function.RConsumer;
 import rvertigo.function.SerializableFunc2;
+import rvertigo.function.Serializer;
+import rvertigo.verticle.dht.routing.NodeInformation;
+import rvertigo.verticle.dht.routing.SerializableCodec;
+import rvertigo.verticle.dht.routing.Routing;
 import rx.Observable;
 import rx.functions.Action0;
 import rx.functions.Action1;
@@ -18,24 +24,33 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
 
   protected final Vertx vertx;
   protected final String prefix;
-  protected final KEY myHash;
-  protected KEY nextHash;
-  
+  protected final Routing<KEY> routing;
+
   protected final DeliveryOptions deliveryOptions = new DeliveryOptions().setSendTimeout(10000);
-  
+
   protected MessageConsumer<byte[]> broadcastConsumer;
   protected MessageConsumer<byte[]> nodeConsumer;
 
   public DhtNode(Vertx vertx, String prefix, KEY myHash) {
     this.vertx = vertx;
     this.prefix = prefix;
-    this.myHash = myHash;
-    this.nextHash = myHash;
+
+    setupDependencies();
+
+    this.routing = new Routing<>();
+    this.routing.myself().
+      myself(myHash).
+      next(myHash).
+      previous(myHash);
+  }
+
+  public NodeInformation<KEY> myself() {
+    return routing.myself();
   }
 
   public DhtNode<KEY, VALUE> join(RConsumer<DhtNode<KEY, VALUE>> joined) {
     bootstrap().
-      doOnNext(nextHash -> this.nextHash = nextHash).
+      doOnNext(nodeInfo -> this.myself().next(nodeInfo.myself())).
       doOnCompleted(() -> onBootstraped()).
       doOnCompleted(() -> joined.accept(this)).
       subscribe();
@@ -43,29 +58,30 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
     return this;
   }
 
-  public Observable<KEY> bootstrap() {
-    final KEY hash = this.myHash;
+  public Observable<NodeInformation<KEY>> bootstrap() {
+    final KEY hash = this.myself().myself();
 
     byte[] ser = DHT.managementMessage((lambda, cb) -> {
       DhtNode<KEY, VALUE> node = lambda.node();
       Message<byte[]> msg = lambda.msg();
 
-      if (DHT.isResponsible(node.myHash, node.nextHash, hash)) {
-        msg.reply(node.nextHash);
-        node.nextHash = hash;
+      if (DHT.isResponsible(node.myself().myself(), node.myself().next(), hash)) {
+        msg.reply(node.myself());
+        node.myself().next(hash);
+
       } else {
         node.vertx.eventBus().
-          <KEY>sendObservable(DHT.toAddress(node.prefix, node.nextHash), msg.body(), node.deliveryOptions).
+          <KEY>sendObservable(DHT.toAddress(node.prefix, node.myself().next()), msg.body(), node.deliveryOptions).
           subscribe(reply -> msg.reply(reply.body()));
       }
 
       cb.accept(null);
     });
-    
+
     return this.vertx.eventBus().
-      <KEY>sendObservable(DHT.toAddress(this.prefix, 0), ser, deliveryOptions).
+      <NodeInformation<KEY>>sendObservable(DHT.toAddress(this.prefix, 0), ser, deliveryOptions).
       map(msg -> msg.body()).
-      onErrorResumeNext(e -> Observable.just(hash));
+      onErrorResumeNext(e -> Observable.just(this.myself()));
   }
 
   protected void onBootstraped() {
@@ -75,27 +91,19 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
     Action0 processCompleted = () -> {
     };
 
+    nodeConsumer = vertx.eventBus().consumer(DHT.toAddress(prefix, myself().myself()));
+    nodeConsumer.toObservable().
+      subscribe(
+        this::processManagementMessage,
+        processException,
+        processCompleted);
+
     broadcastConsumer = vertx.eventBus().consumer(DHT.toAddress(prefix, 0));
     broadcastConsumer.toObservable().
       subscribe(
-        msg -> processManagementMessage(msg),
+        this::processManagementMessage,
         processException,
         processCompleted);
-
-    nodeConsumer = vertx.eventBus().consumer(DHT.toAddress(prefix, myHash));
-    nodeConsumer.toObservable().
-      subscribe(
-        msg -> processManagementMessage(msg),
-        processException,
-        processCompleted);
-  }
-
-  public KEY getIdentity() {
-    return myHash;
-  }
-
-  public KEY getNextIdentity() {
-    return this.nextHash;
   }
 
   public Vertx getVertx() {
@@ -111,66 +119,101 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
       subscribe();
   }
 
-  public <NODE extends DhtNode<KEY, VALUE>, RESULT extends Serializable> Observable<RESULT> traverse(KEY start, KEY end,
+  // TODO: remove initator
+  public <NODE extends DhtNode<KEY, VALUE>, RESULT extends Serializable> Observable<RESULT> traverse(KEY start,
+    KEY end,
     RESULT identity,
     SerializableFunc2<RESULT> resultReducer,
     AsyncFunction<DhtLambda<NODE, RESULT>, RESULT> f) {
-    final KEY startHash = myHash;
+
+    KEY initator = myself().myself();
 
     byte[] ser = DHT.<NODE, RESULT>managementMessage((lambda, cb) -> {
-      final NODE node = lambda.node();
+      // on REMOTE node
+      final NODE remote = lambda.node();
       final Message<byte[]> msg = lambda.msg();
+      final AtomicReference<RequestStatus> status = new AtomicReference(RequestStatus.PROCESSING_LOCAL);
 
       final PublishSubject<RESULT> result = PublishSubject.create();
       result.reduce(identity, resultReducer).
-        subscribe(
-          r -> msg.reply(r),
-          e -> msg.reply(e),
-          () -> {
-          });
+        doOnError(e -> msg.reply(e)).
+        last().
+        doOnNext(r -> System.out.println(remote.myself().myself() + ": reply = " + r)).
+        doOnNext(r -> msg.reply(r)).
+        subscribe();
 
-      AtomicLong requestCounter = new AtomicLong(2);
-      Runnable requestProcessed = () -> {
-        if (requestCounter.decrementAndGet() == 0) {
+      Consumer<RequestStatus> requestProcessed = (s) -> {
+        if (status.get() == RequestStatus.PROCESSING_LOCAL && s == RequestStatus.FINISHED) {
+          status.set(s);
+        } else if (status.get() == RequestStatus.PROCESSING_NEXT && s == RequestStatus.FINISHED) {
+          status.set(s);
+        } else if (status.get() == RequestStatus.PROCESSING_LOCAL && s == RequestStatus.PROCESSING_NEXT) {
+          status.set(s);
+        } else if (status.get() == s) {
+        } else {
+          throw new IllegalStateException(status.get() + " -> " + s + " NOT POSSIBLE");
+        }
+
+        if (status.get() == RequestStatus.FINISHED && !result.hasCompleted()) {
           result.onCompleted();
         }
       };
 
-      if ((!start.equals(end) && DHT.isResponsible(start, end, node.myHash))
-        || DHT.isResponsible(node.myHash, node.nextHash, start)
-        || DHT.isResponsible(node.myHash, node.nextHash, end)) {
+      if ((!start.equals(end) && DHT.isResponsible(start, end, remote.myself().myself()))
+        || DHT.isResponsible(remote.myself().myself(), remote.myself().next(), start)
+        || DHT.isResponsible(remote.myself().myself(), remote.myself().next(), end)) {
 
-        f.apply(new DhtLambda<>(f).node(node).msg(msg), (RESULT r) -> {
+        f.apply(new DhtLambda<>(f).node(remote).msg(msg), (RESULT r) -> {
           result.onNext(r);
 
-          requestProcessed.run();
+          if (start.equals(end)) {
+            requestProcessed.accept(RequestStatus.FINISHED);
+          }
         });
       } else {
-        requestProcessed.run();
+        requestProcessed.accept(RequestStatus.PROCESSING_NEXT);
       }
 
-      if (!node.nextHash.equals(startHash)) {
-        String addr = DHT.toAddress(node.prefix, node.nextHash);
-        node.vertx.eventBus().<RESULT>sendObservable(addr, lambda.serialize(), node.deliveryOptions).
-          subscribe(
-            msg1 -> result.onNext(msg1.body()),
-            e -> result.onError(e),
-            () -> requestProcessed.run()
-          );
-          
+      if (!remote.myself().next().equals(initator) && status.get() == RequestStatus.PROCESSING_NEXT) {
+        String addr = DHT.toAddress(remote.prefix, remote.myself().next());
+
+        System.out.println("INITATOR " + initator);
+        System.out.println(remote.myself().myself() + ": SEND to " + remote.myself().next());
+        remote.vertx.eventBus().<RESULT>sendObservable(addr, lambda.serialize(), remote.deliveryOptions).
+          doOnNext(msg1 -> result.onNext(resultReducer.call(msg1.body(), identity))).
+          doOnError(e -> result.onError(e)).
+          doOnCompleted(() -> requestProcessed.accept(RequestStatus.FINISHED)).
+          subscribe();
+
       } else {
-        requestProcessed.run();
+        requestProcessed.accept(RequestStatus.FINISHED);
       }
     });
-    
-    return vertx.eventBus().<RESULT>sendObservable(DHT.toAddress(prefix, myHash), ser, deliveryOptions).
+
+    return vertx.eventBus().<RESULT>sendObservable(DHT.toAddress(prefix, myself().myself()), ser, deliveryOptions).
       map(msg -> msg.body());
   }
 
   @Override
   public String toString() {
-    return this.getIdentity().toString() + ": ["
-      + this.getIdentity().toString() + "-"
-      + this.getNextIdentity().toString() + "]";
+    return this.myself().myself().toString() + ": ["
+      + this.myself().previous().toString() + "-"
+      + this.myself().next().toString() + "]";
+  }
+
+  private void setupDependencies() {
+    try {
+      SerializableCodec codec = new SerializableCodec(NodeInformation.class);
+      ((io.vertx.core.Vertx) this.vertx.getDelegate()).eventBus().
+        registerDefaultCodec(codec.klass, codec);
+    } catch (IllegalStateException e) {
+
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
+
+  enum RequestStatus {
+    PROCESSING_LOCAL, FINISHED, PROCESSING_NEXT
   }
 }

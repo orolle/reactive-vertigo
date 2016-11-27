@@ -16,11 +16,13 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import rvertigo.verticle.dht.DhtMap;
 import rx.Completable;
 import rx.subjects.PublishSubject;
+import rx.subjects.ReplaySubject;
 
 /**
  *
@@ -62,15 +64,6 @@ public class DhtMapIntegerIntegerTest {
     vertx.close(context.asyncAssertSuccess());
   }
 
-  @Test
-  public void bootstrapTest(TestContext context) {
-    Async a = context.async();
-    bootstrapRunner(context).
-      subscribe(() -> {
-        rv1.get(0).toCompletable().subscribe(a::complete);
-      });
-  }
-
   private Completable bootstrapRunner(TestContext context) {
     PublishSubject result = PublishSubject.create();
 
@@ -89,6 +82,18 @@ public class DhtMapIntegerIntegerTest {
     return result.toCompletable();
   }
 
+  @Ignore
+  @Test
+  public void testBootstrap(TestContext context) {
+    Async async = context.async();
+
+    bootstrapRunner(context).
+      doOnError(context::fail).
+      doOnCompleted(() -> async.complete()).
+      subscribe();
+  }
+  
+  @Ignore
   @Test
   public void putAndGetTest(TestContext context) {
     Async a = context.async();
@@ -100,8 +105,9 @@ public class DhtMapIntegerIntegerTest {
     bootstrapRunner(context).
       subscribe(() -> {
         rv2.put(Integer.MIN_VALUE / 2, testInt).
-          toSingleDefault(Boolean.TRUE).
-          flatMapObservable(v -> rv3.get(Integer.MIN_VALUE / 2)).
+          doOnNext(b -> System.out.println("SUCCEED: " + b)).
+          doOnNext(context::assertTrue).
+          flatMap(v -> rv3.get(Integer.MIN_VALUE / 2)).
           subscribe(value -> {
             context.assertEquals(testInt, value);
             context.assertNotEquals(System.identityHashCode(testInt), System.identityHashCode(value));
@@ -126,31 +132,51 @@ public class DhtMapIntegerIntegerTest {
     expected.add(y);
     expected.add(z);
 
-    Integer from = y;
+    Integer from = y - 1;
     Integer to = z + 1; // So that z is inculuded in the query range
 
-    context.assertTrue(from.compareTo(y) <= 0);
-    context.assertTrue(from.compareTo(z) <= 0);
-    context.assertTrue(to.compareTo(y) > 0);
-    context.assertTrue(to.compareTo(z) > 0);
+    context.assertTrue(from < y);
+    context.assertTrue(from < z);
+    context.assertTrue(to > y);
+    context.assertTrue(to > z);
 
     bootstrapRunner(context).
       subscribe(() -> {
         rv1.put(x, x).
           concatWith(rv2.put(y, y)).
           concatWith(rv3.put(z, z)).
-          toSingleDefault(Boolean.TRUE).
-          flatMapObservable(v -> rv1.rangeQuery(from, to)).
-          subscribe(
-            value -> {
-              context.assertTrue(expected.remove(value.getKey()));
-            },
-            e -> context.assertTrue(false, "Exception while handling results: " + e),
-            () -> {
-              context.assertTrue(expected.isEmpty(), "Is not empty as expected!");
-              a.complete();
-            }
-          );
+          last().
+          flatMap(v -> rv1.rangeQuery(from, to)).
+          doOnNext(value -> context.assertTrue(expected.remove(value.getKey()))).
+          doOnError(e -> {
+            context.assertTrue(false, "Exception while handling results. ");
+            e.printStackTrace();
+          }).
+          doOnCompleted(() -> {
+            context.assertTrue(expected.isEmpty(), "Is not empty as expected!");
+            a.complete();
+          }).
+          subscribe();
       });
+  }
+
+  @Ignore
+  @Test
+  public void replaySubjectTes() {
+    ReplaySubject<String> replay = ReplaySubject.create();
+
+    replay.onNext("A");
+    replay.onNext("B");
+    replay.onNext("C");
+
+    replay.onCompleted();
+
+    replay.onNext("D");
+
+    replay.onCompleted();
+
+    replay.
+      doOnNext(System.out::println).
+      subscribe();
   }
 }

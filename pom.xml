@@ -15,12 +15,24 @@
     <dependency>
       <groupId>io.vertx</groupId>
       <artifactId>vertx-rx-java</artifactId>
-      <version>3.3.2</version>
+      <version>3.3.3</version>
     </dependency>
     <dependency>
       <groupId>io.vertx</groupId>
+      <artifactId>vertx-service-proxy</artifactId>
+      <version>3.2.1</version>
+    </dependency>
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-codegen</artifactId>
+      <optional>true</optional>
+      <version>3.2.1</version>
+    </dependency>
+    
+    <dependency>
+      <groupId>io.vertx</groupId>
       <artifactId>vertx-unit</artifactId>
-      <version>3.3.2</version>
+      <version>3.3.3</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -30,32 +42,87 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+  
 
   <build>
-
     <pluginManagement>
       <plugins>
-        <!-- We specify the Maven compiler plugin as we need to set it to Java 
-        1.8 -->
         <plugin>
           <artifactId>maven-compiler-plugin</artifactId>
           <version>3.1</version>
           <configuration>
             <source>1.8</source>
             <target>1.8</target>
+            <annotationProcessors>
+              <annotationProcessor>io.vertx.codegen.CodeGenProcessor</annotationProcessor>
+            </annotationProcessors>
+            <generatedSourcesDirectory>
+              ${project.basedir}/target/generated-sources
+            </generatedSourcesDirectory>
+            <compilerArgs>
+              <arg>-AoutputDirectory=${project.basedir}/src/main</arg>
+            </compilerArgs>
           </configuration>
         </plugin>
       </plugins>
     </pluginManagement>
-
-    <!-- You only need the part below if you want to build your application 
-    into a fat executable jar. This is a jar that contains all the dependencies 
-    required to run it, so you can just run it with java -jar -->
     <plugins>
+      <!-- Pure Evil
+      <plugin> 
+        <groupId>com.googlecode.addjars-maven-plugin</groupId> 
+        <artifactId>addjars-maven-plugin</artifactId> 
+        <version>1.0.5</version> 
+        <executions> 
+          <execution> 
+            <goals> 
+              <goal>add-jars</goal> 
+            </goals> 
+            <configuration> 
+              <resources> 
+                <resource> 
+                  <directory>${basedir}/lib</directory> 
+                </resource> 
+              </resources> 
+            </configuration> 
+          </execution> 
+        </executions> 
+      </plugin>
+      -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>1.10</version>
+        <executions>
+          <execution>
+            <id>add-source</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>add-source</goal>
+            </goals>
+            <configuration>
+              <sources>
+                <source>${project.basedir}/target/generated-sources</source>
+              </sources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
         <version>2.3</version>
+        <configuration>
+          <filters>
+            <filter>
+              <artifact>*:*</artifact>
+              <excludes>
+                <exclude>META-INF/*.SF</exclude>
+                <exclude>META-INF/*.DSA</exclude>
+                <exclude>META-INF/*.RSA</exclude>
+              </excludes>
+            </filter>
+          </filters>
+        </configuration>
         <executions>
           <execution>
             <phase>package</phase>
@@ -64,14 +131,13 @@
             </goals>
             <configuration>
               <transformers>
-                <transformer
-                  implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                   <manifestEntries>
-                    <Main-Class>${main.class}</Main-Class>
+                    <Main-Class>de.urbanpulse.util.ClusterNodeStarter</Main-Class>
+                    <Main-Verticle>de.usi.spp.module.MainVerticle</Main-Verticle>
                   </manifestEntries>
                 </transformer>
-                <transformer
-                  implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
                   <resource>META-INF/services/io.vertx.core.spi.VerticleFactory</resource>
                 </transformer>
               </transformers>
@@ -83,5 +149,6 @@
         </executions>
       </plugin>
     </plugins>
+
   </build>
 </project>

@@ -57,6 +57,7 @@ public class DhtMapStringStringTest {
     Async a = context.async();
     bootstrapRunner(context).
       subscribe(() -> {
+        map1.get("").subscribe(System.out::println, System.out::println, System.out::println);
         map1.get("").toCompletable().subscribe(a::complete);
       });
   }
@@ -90,8 +91,7 @@ public class DhtMapStringStringTest {
     bootstrapRunner(context).
       subscribe(() -> {
         map2.put(testKey, testValue).
-          toSingleDefault(Boolean.TRUE).
-          flatMapObservable(v -> map3.get(testKey)).
+          flatMap(v -> map3.get(testKey)).
           subscribe(value -> {
             context.assertEquals(testValue, value);
             context.assertNotEquals(System.identityHashCode(testValue), System.identityHashCode(value));
@@ -129,8 +129,7 @@ public class DhtMapStringStringTest {
         map1.put(x, x).
           concatWith(map2.put(y, y)).
           concatWith(map3.put(z, z)).
-          toSingleDefault(Boolean.TRUE).
-          flatMapObservable(v -> map1.rangeQuery(from, to)).
+          flatMap(v -> map1.rangeQuery(from, to)).
           subscribe(
             value -> {
               context.assertTrue(expected.remove(value.getKey()));
