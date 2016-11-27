@@ -9,9 +9,12 @@ import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.rxjava.core.Vertx;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -54,9 +57,9 @@ public class DhtMapIntegerIntegerTest {
   @Before
   public void setUp(TestContext context) {
     vertx = Vertx.vertx();
-    rv1 = new DhtMap<>(vertx, "DhtMap_int_int", random());
-    rv2 = new DhtMap<>(vertx, "DhtMap_int_int", random());
-    rv3 = new DhtMap<>(vertx, "DhtMap_int_int", random());
+    rv1 = new DhtMap<>(vertx, "DhtMap_int_int", 0);
+    rv2 = new DhtMap<>(vertx, "DhtMap_int_int", 1000);
+    rv3 = new DhtMap<>(vertx, "DhtMap_int_int", 2000);
   }
 
   @After
@@ -72,8 +75,13 @@ public class DhtMapIntegerIntegerTest {
       rv2.join(r2 -> {
         context.assertTrue(r2 != null);
         rv3.join(r3 -> {
+          Function<DhtMap, String> asString = rv -> rv.myself().myself() + " -> " + rv.myself().next();
+          
           context.assertTrue(r3 != null);
-          // System.out.println("BOOTSTRAPED ALL");
+          context.assertEquals("0 -> 1000", asString.apply(rv1));
+          context.assertEquals("1000 -> 2000", asString.apply(rv2));
+          context.assertEquals("2000 -> 0", asString.apply(rv3));
+          
           result.onCompleted();
         });
       });
@@ -82,7 +90,6 @@ public class DhtMapIntegerIntegerTest {
     return result.toCompletable();
   }
 
-  @Ignore
   @Test
   public void testBootstrap(TestContext context) {
     Async async = context.async();
@@ -92,41 +99,46 @@ public class DhtMapIntegerIntegerTest {
       doOnCompleted(() -> async.complete()).
       subscribe();
   }
-  
-  @Ignore
+
   @Test
   public void putAndGetTest(TestContext context) {
     Async a = context.async();
 
+    Integer testKey = 1001;
     Integer testInt = 1337;
     Set<Integer> expected = new HashSet<>();
     expected.add(testInt);
 
     bootstrapRunner(context).
       subscribe(() -> {
-        rv2.put(Integer.MIN_VALUE / 2, testInt).
-          doOnNext(b -> System.out.println("SUCCEED: " + b)).
+        rv2.put(testKey, testInt).
           doOnNext(context::assertTrue).
-          flatMap(v -> rv3.get(Integer.MIN_VALUE / 2)).
+          flatMap(v -> rv3.get(testKey)).
           subscribe(value -> {
             context.assertEquals(testInt, value);
             context.assertNotEquals(System.identityHashCode(testInt), System.identityHashCode(value));
             context.assertTrue(expected.remove(value));
             context.assertTrue(expected.isEmpty());
-            a.complete();
+            rv2.put(testKey, null).
+              doOnError(context::fail).
+              doOnCompleted(a::complete).
+              subscribe();
           }, e -> {
             context.assertTrue(false, "Exception should not be thrown!");
           });
       });
   }
 
+  //@Ignore
   @Test
   public void rangeQueryTest(TestContext context) {
     Async a = context.async();
 
-    Integer x = Integer.MIN_VALUE / 2;
-    Integer y = 0;
-    Integer z = Integer.MAX_VALUE / 2;
+    Arrays.asList(rv1, rv2, rv3).forEach(rv -> rv.getValues().clear());
+
+    Integer x = 1;
+    Integer y = 1002;
+    Integer z = 2002;
 
     Set<Integer> expected = new HashSet<>();
     expected.add(y);
@@ -149,8 +161,9 @@ public class DhtMapIntegerIntegerTest {
           flatMap(v -> rv1.rangeQuery(from, to)).
           doOnNext(value -> context.assertTrue(expected.remove(value.getKey()))).
           doOnError(e -> {
-            context.assertTrue(false, "Exception while handling results. ");
+            System.out.println("# e.printStackTrace()");
             e.printStackTrace();
+            context.fail(e);
           }).
           doOnCompleted(() -> {
             context.assertTrue(expected.isEmpty(), "Is not empty as expected!");
@@ -158,25 +171,5 @@ public class DhtMapIntegerIntegerTest {
           }).
           subscribe();
       });
-  }
-
-  @Ignore
-  @Test
-  public void replaySubjectTes() {
-    ReplaySubject<String> replay = ReplaySubject.create();
-
-    replay.onNext("A");
-    replay.onNext("B");
-    replay.onNext("C");
-
-    replay.onCompleted();
-
-    replay.onNext("D");
-
-    replay.onCompleted();
-
-    replay.
-      doOnNext(System.out::println).
-      subscribe();
   }
 }

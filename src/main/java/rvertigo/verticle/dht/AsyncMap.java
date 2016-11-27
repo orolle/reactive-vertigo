@@ -33,7 +33,7 @@ public class AsyncMap<K extends Serializable & Comparable<K>, V extends Serializ
     return this.values.get(key);
   }
 
-  public void put(K key, V value) {
+  public AsyncMap<K, V> put(K key, V value) {
     final Entry<K, V> e = new AbstractMap.SimpleEntry<>(key, value);
     this.values.put(key, value);
 
@@ -41,6 +41,13 @@ public class AsyncMap<K extends Serializable & Comparable<K>, V extends Serializ
       cbs.get(key).entrySet().forEach(entry -> entry.getValue().apply(new AbstractMap.SimpleEntry<>(node, e), v -> {
       }));
     }
+    return this;
+  }
+  
+  public AsyncMap<K, V> clear() {
+    values.clear();
+    cbs.clear();
+    return this;
   }
 
   public Integer onChange(K key, AsyncMapCallback<K, V> cb) {

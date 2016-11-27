@@ -9,8 +9,11 @@ import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.rxjava.core.Vertx;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -27,7 +30,7 @@ import rx.subjects.PublishSubject;
  */
 @RunWith(VertxUnitRunner.class)
 public class DhtMapStringStringTest {
-  
+
   Vertx vertx;
   DhtMap<String, String> map1, map2, map3;
 
@@ -64,13 +67,23 @@ public class DhtMapStringStringTest {
 
   private Completable bootstrapRunner(TestContext context) {
     PublishSubject result = PublishSubject.create();
+    Function<DhtMap, String> asString = rv -> rv.myself().myself() + " -> " + rv.myself().next();
 
     map1.join(r1 -> {
       context.assertTrue(r1 != null);
+      context.assertEquals("A -> A", asString.apply(map1));
       map2.join(r2 -> {
         context.assertTrue(r2 != null);
+        context.assertEquals("A -> Z", asString.apply(map1));
+        context.assertEquals("Z -> A", asString.apply(map2));
         map3.join(r3 -> {
           context.assertTrue(r3 != null);
+
+          context.assertTrue(r3 != null);
+          context.assertEquals("A -> Z", asString.apply(map1));
+          context.assertEquals("Z -> a", asString.apply(map2));
+          context.assertEquals("a -> A", asString.apply(map3));
+
           result.onCompleted();
         });
       });
@@ -116,25 +129,31 @@ public class DhtMapStringStringTest {
     expected.add(x);
     expected.add(y);
 
+    Set<String> received = new HashSet<>();
+
     String from = "A";
     String to = "i"; // So that y is inculuded in the query range
-    
+
     context.assertTrue(from.compareTo(x) <= 0);
     context.assertTrue(from.compareTo(y) <= 0);
     context.assertTrue(to.compareTo(x) > 0);
     context.assertTrue(to.compareTo(y) > 0);
-    
+
     bootstrapRunner(context).
       subscribe(() -> {
         map1.put(x, x).
           concatWith(map2.put(y, y)).
           concatWith(map3.put(z, z)).
+          last().
           flatMap(v -> map1.rangeQuery(from, to)).
           subscribe(
             value -> {
               context.assertTrue(expected.remove(value.getKey()));
+              received.add(value.getKey());
             },
-            e -> context.assertTrue(false, "Exception while handling results: " + e),
+            e -> {
+              context.assertTrue(false, "Exception while handling results: " + e);
+            },
             () -> {
               context.assertTrue(expected.isEmpty(), "Is not empty as expected!");
               a.complete();

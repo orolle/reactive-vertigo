@@ -50,7 +50,7 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
 
   public DhtNode<KEY, VALUE> join(RConsumer<DhtNode<KEY, VALUE>> joined) {
     bootstrap().
-      doOnNext(nodeInfo -> this.myself().next(nodeInfo.myself())).
+      doOnNext(nodeInfo -> this.myself().next(nodeInfo.next())).
       doOnCompleted(() -> onBootstraped()).
       doOnCompleted(() -> joined.accept(this)).
       subscribe();
@@ -64,7 +64,7 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
     byte[] ser = DHT.managementMessage((lambda, cb) -> {
       DhtNode<KEY, VALUE> node = lambda.node();
       Message<byte[]> msg = lambda.msg();
-
+      
       if (DHT.isResponsible(node.myself().myself(), node.myself().next(), hash)) {
         msg.reply(node.myself());
         node.myself().next(hash);
@@ -79,7 +79,7 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
     });
 
     return this.vertx.eventBus().
-      <NodeInformation<KEY>>sendObservable(DHT.toAddress(this.prefix, 0), ser, deliveryOptions).
+      <NodeInformation<KEY>>sendObservable(this.prefix, ser, deliveryOptions).
       map(msg -> msg.body()).
       onErrorResumeNext(e -> Observable.just(this.myself()));
   }
@@ -98,7 +98,7 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
         processException,
         processCompleted);
 
-    broadcastConsumer = vertx.eventBus().consumer(DHT.toAddress(prefix, 0));
+    broadcastConsumer = vertx.eventBus().consumer(prefix);
     broadcastConsumer.toObservable().
       subscribe(
         this::processManagementMessage,
@@ -135,10 +135,9 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
       final AtomicReference<RequestStatus> status = new AtomicReference(RequestStatus.PROCESSING_LOCAL);
 
       final PublishSubject<RESULT> result = PublishSubject.create();
-      result.reduce(identity, resultReducer).
-        doOnError(e -> msg.reply(e)).
-        last().
-        doOnNext(r -> System.out.println(remote.myself().myself() + ": reply = " + r)).
+      result.
+        reduce(identity, resultReducer).
+        doOnError(e -> msg.fail(-1, e.getMessage())).
         doOnNext(r -> msg.reply(r)).
         subscribe();
 
@@ -155,6 +154,7 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
         }
 
         if (status.get() == RequestStatus.FINISHED && !result.hasCompleted()) {
+          result.onNext(identity);
           result.onCompleted();
         }
       };
@@ -168,19 +168,19 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
 
           if (start.equals(end)) {
             requestProcessed.accept(RequestStatus.FINISHED);
+          } else {
+            requestProcessed.accept(RequestStatus.PROCESSING_NEXT);
           }
         });
       } else {
         requestProcessed.accept(RequestStatus.PROCESSING_NEXT);
       }
 
-      if (!remote.myself().next().equals(initator) && status.get() == RequestStatus.PROCESSING_NEXT) {
+      if (!remote.myself().next().equals(initator)
+        && status.get() == RequestStatus.PROCESSING_NEXT) {
         String addr = DHT.toAddress(remote.prefix, remote.myself().next());
-
-        System.out.println("INITATOR " + initator);
-        System.out.println(remote.myself().myself() + ": SEND to " + remote.myself().next());
         remote.vertx.eventBus().<RESULT>sendObservable(addr, lambda.serialize(), remote.deliveryOptions).
-          doOnNext(msg1 -> result.onNext(resultReducer.call(msg1.body(), identity))).
+          doOnNext(msg1 -> result.onNext(msg1.body())).
           doOnError(e -> result.onError(e)).
           doOnCompleted(() -> requestProcessed.accept(RequestStatus.FINISHED)).
           subscribe();
