@@ -8,7 +8,6 @@ import io.vertx.rxjava.core.eventbus.MessageConsumer;
 import java.io.Serializable;
 import java.util.AbstractMap;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
@@ -17,12 +16,11 @@ import java.util.function.Consumer;
 import rvertigo.function.AsyncFunction;
 import rvertigo.function.SerializableFunc2;
 import rvertigo.verticle.dht.routing.NodeInformation;
-import rvertigo.verticle.dht.routing.SerializableCodec;
 import rvertigo.verticle.dht.routing.Routing;
+import rvertigo.verticle.dht.routing.SerializableCodec;
 import rx.Observable;
 import rx.functions.Action0;
 import rx.functions.Action1;
-import rx.subjects.BehaviorSubject;
 import rx.subjects.PublishSubject;
 import rx.subjects.ReplaySubject;
 
@@ -252,14 +250,17 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
     return result.
       cache();
   }
-  
+
   public Observable<String> dhtTopologyAsDot() {
     return Observable.empty().concat(
       Observable.just("digraph G {"),
-      dhtTopology().map(e -> e.getKey()+" -> "+e.getValue()), 
+      dhtTopology().map(e -> "  " + e.getKey() + " -> " + e.getValue()),
       Observable.just("}")
     ).
-      reduce(new ArrayList<String>(), (a, b) -> { a.add(b); return a;}).
+      reduce(new ArrayList<String>(), (a, b) -> {
+        a.add(b);
+        return a;
+      }).
       map(list -> String.join("\n", list));
   }
 

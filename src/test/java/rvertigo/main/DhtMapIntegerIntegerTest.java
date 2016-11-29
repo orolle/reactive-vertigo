@@ -14,18 +14,15 @@ import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import rvertigo.verticle.dht.DhtMap;
 import rx.Completable;
 import rx.subjects.PublishSubject;
-import rx.subjects.ReplaySubject;
 
 /**
  *
