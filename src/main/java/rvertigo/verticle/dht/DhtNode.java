@@ -1,24 +1,30 @@
 package rvertigo.verticle.dht;
 
 import io.vertx.core.eventbus.DeliveryOptions;
+import io.vertx.core.json.JsonObject;
 import io.vertx.rxjava.core.Vertx;
 import io.vertx.rxjava.core.eventbus.Message;
 import io.vertx.rxjava.core.eventbus.MessageConsumer;
 import java.io.Serializable;
+import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import rvertigo.function.AsyncFunction;
-import rvertigo.function.RConsumer;
 import rvertigo.function.SerializableFunc2;
-import rvertigo.function.Serializer;
 import rvertigo.verticle.dht.routing.NodeInformation;
 import rvertigo.verticle.dht.routing.SerializableCodec;
 import rvertigo.verticle.dht.routing.Routing;
 import rx.Observable;
 import rx.functions.Action0;
 import rx.functions.Action1;
+import rx.subjects.BehaviorSubject;
 import rx.subjects.PublishSubject;
+import rx.subjects.ReplaySubject;
 
 public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends Serializable> {
 
@@ -48,14 +54,12 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
     return routing.myself();
   }
 
-  public DhtNode<KEY, VALUE> join(RConsumer<DhtNode<KEY, VALUE>> joined) {
-    bootstrap().
+  public Observable<DhtNode<KEY, VALUE>> join() {
+    return bootstrap().
       doOnNext(nodeInfo -> this.myself().next(nodeInfo.next())).
       doOnCompleted(() -> onBootstraped()).
-      doOnCompleted(() -> joined.accept(this)).
-      subscribe();
-
-    return this;
+      last().
+      map(s -> this);
   }
 
   public Observable<NodeInformation<KEY>> bootstrap() {
@@ -64,7 +68,7 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
     byte[] ser = DHT.managementMessage((lambda, cb) -> {
       DhtNode<KEY, VALUE> node = lambda.node();
       Message<byte[]> msg = lambda.msg();
-      
+
       if (DHT.isResponsible(node.myself().myself(), node.myself().next(), hash)) {
         msg.reply(node.myself());
         node.myself().next(hash);
@@ -119,12 +123,14 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
       subscribe();
   }
 
-  // TODO: remove initator
   public <NODE extends DhtNode<KEY, VALUE>, RESULT extends Serializable> Observable<RESULT> traverse(KEY start,
     KEY end,
     RESULT identity,
     SerializableFunc2<RESULT> resultReducer,
     AsyncFunction<DhtLambda<NODE, RESULT>, RESULT> f) {
+    // TODO 
+    // Replace traverse() logic with meaningful interfaces and state machine to be easier to understand
+    // TODO
 
     KEY initator = myself().myself();
 
@@ -192,6 +198,69 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
 
     return vertx.eventBus().<RESULT>sendObservable(DHT.toAddress(prefix, myself().myself()), ser, deliveryOptions).
       map(msg -> msg.body());
+  }
+
+  public Observable<Map.Entry<KEY, KEY>> dhtTopology() {
+    final String address = this.prefix + ".data." + UUID.randomUUID().toString();
+    final KEY from = myself().next();
+    final KEY to = myself().myself();
+
+    ReplaySubject<Map.Entry<KEY, KEY>> result = ReplaySubject.create();
+    AtomicLong countResponsed = new AtomicLong(0);
+    AtomicReference<Runnable> checkComplete = new AtomicReference<>();
+
+    MessageConsumer<JsonObject> consumer = vertx.eventBus().consumer(address, (Message<JsonObject> msg) -> {
+      JsonObject o = msg.body();
+      result.onNext(new AbstractMap.SimpleEntry<>((KEY) o.getValue("k"), (KEY) o.getValue("v")));
+      countResponsed.decrementAndGet();
+      checkComplete.get().run();
+    });
+
+    checkComplete.set(() -> {
+      if (countResponsed.get() == 0) {
+        consumer.unregister();
+        result.onCompleted();
+      }
+    });
+
+    result.onNext(new AbstractMap.SimpleEntry<>(myself().myself(), myself().next()));
+
+    this.<DhtMap<KEY, VALUE>, Long>traverse(from, to, 0l,
+      (a, b) -> Long.sum(a, b),
+      (pair, cb) -> {
+        DhtMap<KEY, VALUE> node = pair.node();
+        Observable.just(new AbstractMap.SimpleEntry<>(node.myself().myself(), node.myself().next())).
+        filter(e -> DHT.isResponsible(from, to, e.getKey())).
+        doOnNext(entry -> {
+          node.getVertx().eventBus().
+            publish(address, new JsonObject().put("k", entry.getKey()).put("v", entry.getValue()));
+        }).
+        countLong().
+        subscribe(l -> {
+          cb.accept(l);
+        }, e -> {
+          e.printStackTrace();
+        });
+      }).
+      subscribe(l -> {
+        long count = countResponsed.accumulateAndGet(l, (a, b) -> a + b);
+        checkComplete.get().run();
+      }, e -> {
+        e.printStackTrace();
+      });
+
+    return result.
+      cache();
+  }
+  
+  public Observable<String> dhtTopologyAsDot() {
+    return Observable.empty().concat(
+      Observable.just("digraph G {"),
+      dhtTopology().map(e -> e.getKey()+" -> "+e.getValue()), 
+      Observable.just("}")
+    ).
+      reduce(new ArrayList<String>(), (a, b) -> { a.add(b); return a;}).
+      map(list -> String.join("\n", list));
   }
 
   @Override

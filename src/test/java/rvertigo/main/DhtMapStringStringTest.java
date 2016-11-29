@@ -55,39 +55,39 @@ public class DhtMapStringStringTest {
     vertx.close(context.asyncAssertSuccess());
   }
 
-  @Test
-  public void bootstrapTest(TestContext context) {
-    Async a = context.async();
+    @Test
+  public void testBootstrap(TestContext context) {
+    Async async = context.async();
+
     bootstrapRunner(context).
-      subscribe(() -> {
-        map1.get("").subscribe(System.out::println, System.out::println, System.out::println);
-        map1.get("").toCompletable().subscribe(a::complete);
-      });
+      doOnError(context::fail).
+      toSingleDefault("").
+      toObservable().
+      switchMap(v -> map1.dhtTopologyAsDot()).
+      //doOnNext(v -> System.out.println(v)).
+      doOnNext(str -> context.assertEquals(5, str.split("\n").length)).
+      doOnCompleted(() -> async.complete()).
+      subscribe();
   }
 
   private Completable bootstrapRunner(TestContext context) {
     PublishSubject result = PublishSubject.create();
     Function<DhtMap, String> asString = rv -> rv.myself().myself() + " -> " + rv.myself().next();
-
-    map1.join(r1 -> {
-      context.assertTrue(r1 != null);
-      context.assertEquals("A -> A", asString.apply(map1));
-      map2.join(r2 -> {
-        context.assertTrue(r2 != null);
-        context.assertEquals("A -> Z", asString.apply(map1));
-        context.assertEquals("Z -> A", asString.apply(map2));
-        map3.join(r3 -> {
-          context.assertTrue(r3 != null);
-
-          context.assertTrue(r3 != null);
-          context.assertEquals("A -> Z", asString.apply(map1));
-          context.assertEquals("Z -> a", asString.apply(map2));
-          context.assertEquals("a -> A", asString.apply(map3));
-
-          result.onCompleted();
-        });
-      });
-    });
+    
+    map1.join().
+      last().
+      doOnNext(node -> context.assertEquals("A -> A", asString.apply(map1))).
+      switchMap(v -> map2.join()).
+      last().
+      doOnNext(node -> context.assertEquals("A -> Z", asString.apply(map1))).
+      doOnNext(node -> context.assertEquals("Z -> A", asString.apply(map2))).
+      switchMap(v -> map3.join()).
+      last().
+      doOnNext(node -> context.assertEquals("A -> Z", asString.apply(map1))).
+      doOnNext(node -> context.assertEquals("Z -> a", asString.apply(map2))).
+      doOnNext(node -> context.assertEquals("a -> A", asString.apply(map3))).
+      doOnNext(node -> result.onCompleted()).
+      subscribe();
 
     return result.toCompletable();
   }

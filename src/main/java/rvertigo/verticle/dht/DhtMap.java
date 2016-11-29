@@ -13,15 +13,10 @@ import java.io.Serializable;
 import java.util.AbstractMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import rvertigo.function.Serializer;
-import rx.Completable;
 import rx.Observable;
-import rx.Single;
 import rx.subjects.BehaviorSubject;
-import rx.subjects.ReplaySubject;
 
 /**
  *

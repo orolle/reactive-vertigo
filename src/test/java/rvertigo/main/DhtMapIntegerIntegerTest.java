@@ -68,24 +68,24 @@ public class DhtMapIntegerIntegerTest {
   }
 
   private Completable bootstrapRunner(TestContext context) {
+    Function<DhtMap, String> asString = rv -> rv.myself().myself() + " -> " + rv.myself().next();
     PublishSubject result = PublishSubject.create();
 
-    rv1.join(r1 -> {
-      context.assertTrue(r1 != null);
-      rv2.join(r2 -> {
-        context.assertTrue(r2 != null);
-        rv3.join(r3 -> {
-          Function<DhtMap, String> asString = rv -> rv.myself().myself() + " -> " + rv.myself().next();
-          
-          context.assertTrue(r3 != null);
-          context.assertEquals("0 -> 1000", asString.apply(rv1));
-          context.assertEquals("1000 -> 2000", asString.apply(rv2));
-          context.assertEquals("2000 -> 0", asString.apply(rv3));
-          
-          result.onCompleted();
-        });
-      });
-    });
+    rv1.join().
+      last().
+      doOnNext(node -> context.assertEquals("0 -> 0", asString.apply(rv1))).
+      switchMap(v -> rv2.join()).
+      last().
+      doOnNext(node -> context.assertEquals("0 -> 1000", asString.apply(rv1))).
+      doOnNext(node -> context.assertEquals("1000 -> 0", asString.apply(rv2))).
+      switchMap(v -> rv3.join()).
+      last().
+      doOnNext(node -> context.assertEquals("0 -> 1000", asString.apply(rv1))).
+      doOnNext(node -> context.assertEquals("1000 -> 2000", asString.apply(rv2))).
+      doOnNext(node -> context.assertEquals("2000 -> 0", asString.apply(rv3))).
+      last().
+      doOnCompleted(() -> result.onCompleted()).
+      subscribe();
 
     return result.toCompletable();
   }
@@ -96,6 +96,11 @@ public class DhtMapIntegerIntegerTest {
 
     bootstrapRunner(context).
       doOnError(context::fail).
+      toSingleDefault("").
+      toObservable().
+      switchMap(v -> rv1.dhtTopologyAsDot()).
+      //doOnNext(v -> System.out.println(v)).
+      doOnNext(str -> context.assertEquals(5, str.split("\n").length)).
       doOnCompleted(() -> async.complete()).
       subscribe();
   }
