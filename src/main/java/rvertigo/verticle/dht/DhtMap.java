@@ -35,7 +35,7 @@ public class DhtMap<K extends Serializable & Comparable<K>, T extends Serializab
   }
 
   public Observable<Boolean> put(K key, T value) {
-    return this.<DhtMap<K, T>, Boolean>traverse(key, key, Boolean.TRUE,
+    return this.<DhtMap<K, T>, Boolean>traverse(key, null, Boolean.TRUE,
       (a, b) -> a && b,
       (lambda, cb) -> {
         lambda.node().getValues().put(key, value);
@@ -44,7 +44,7 @@ public class DhtMap<K extends Serializable & Comparable<K>, T extends Serializab
   }
 
   public Observable<T> get(K key) {
-    return this.<DhtMap<K, T>, T>traverse(key, key, null,
+    return this.<DhtMap<K, T>, T>traverse(key, null, null,
       (a, b) -> a != null ? a : b != null ? b : null,
       (pair, cb) -> {
         T data = pair.node().getValues().get(key);

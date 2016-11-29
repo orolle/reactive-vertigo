@@ -121,8 +121,8 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
       subscribe();
   }
 
-  public <NODE extends DhtNode<KEY, VALUE>, RESULT extends Serializable> Observable<RESULT> traverse(KEY start,
-    KEY end,
+  public <NODE extends DhtNode<KEY, VALUE>, RESULT extends Serializable> Observable<RESULT> traverse(KEY _start,
+    KEY _end,
     RESULT identity,
     SerializableFunc2<RESULT> resultReducer,
     AsyncFunction<DhtLambda<NODE, RESULT>, RESULT> f) {
@@ -131,6 +131,8 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
     // TODO
 
     KEY initator = myself().myself();
+    KEY start = _start;
+    KEY end = _end != null? _end : _start;
 
     byte[] ser = DHT.<NODE, RESULT>managementMessage((lambda, cb) -> {
       // on REMOTE node
