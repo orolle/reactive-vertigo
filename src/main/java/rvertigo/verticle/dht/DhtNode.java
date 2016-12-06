@@ -121,8 +121,8 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
       subscribe();
   }
 
-  public <NODE extends DhtNode<KEY, VALUE>, RESULT extends Serializable> Observable<RESULT> traverse(KEY _start,
-    KEY _end,
+  public <NODE extends DhtNode<KEY, VALUE>, RESULT extends Serializable> Observable<RESULT> traverse(KEY start,
+    KEY end,
     RESULT identity,
     SerializableFunc2<RESULT> resultReducer,
     AsyncFunction<DhtLambda<NODE, RESULT>, RESULT> f) {
@@ -131,9 +131,7 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
     // TODO
 
     KEY initator = myself().myself();
-    KEY start = _start;
-    KEY end = _end != null? _end : _start;
-
+    
     byte[] ser = DHT.<NODE, RESULT>managementMessage((lambda, cb) -> {
       // on REMOTE node
       final NODE remote = lambda.node();
@@ -165,9 +163,9 @@ public class DhtNode<KEY extends Serializable & Comparable<KEY>, VALUE extends S
         }
       };
 
-      if ((!start.equals(end) && DHT.isResponsible(start, end, remote.myself().myself()))
-        || DHT.isResponsible(remote.myself().myself(), remote.myself().next(), start)
-        || DHT.isResponsible(remote.myself().myself(), remote.myself().next(), end)) {
+      if (DHT.isResponsible(remote.myself().myself(), remote.myself().next(), start)
+        || DHT.isResponsible(remote.myself().myself(), remote.myself().next(), end != null? end : start)
+        || (end != null && !start.equals(end) && DHT.isResponsible(start, end, remote.myself().myself()))) {
 
         f.apply(new DhtLambda<>(f).node(remote).msg(msg), (RESULT r) -> {
           result.onNext(r);
