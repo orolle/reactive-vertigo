@@ -26,7 +26,12 @@
       <groupId>io.vertx</groupId>
       <artifactId>vertx-codegen</artifactId>
       <optional>true</optional>
-      <version>3.2.1</version>
+      <version>3.3.3</version>
+    </dependency>
+    <dependency>
+      <groupId>com.github.orolle</groupId>
+      <artifactId>smc-lib-java</artifactId>
+      <version>6.4.0_rx_b1</version>
     </dependency>
     
     <dependency>
@@ -67,27 +72,25 @@
       </plugins>
     </pluginManagement>
     <plugins>
-      <!-- Pure Evil
-      <plugin> 
-        <groupId>com.googlecode.addjars-maven-plugin</groupId> 
-        <artifactId>addjars-maven-plugin</artifactId> 
-        <version>1.0.5</version> 
-        <executions> 
-          <execution> 
-            <goals> 
-              <goal>add-jars</goal> 
-            </goals> 
-            <configuration> 
-              <resources> 
-                <resource> 
-                  <directory>${basedir}/lib</directory> 
-                </resource> 
-              </resources> 
-            </configuration> 
-          </execution> 
-        </executions> 
+      <plugin>
+        <groupId>com.github.orolle</groupId>
+        <artifactId>smc-maven-plugin</artifactId>
+        <version>6.4.0_rx_b1</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>smc</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <verbose>true</verbose>
+          <serial>true</serial>
+          <sync>true</sync>
+          <rx>true</rx>
+        </configuration>
       </plugin>
-      -->
+      
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>build-helper-maven-plugin</artifactId>
