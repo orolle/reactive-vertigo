@@ -72,11 +72,8 @@ public class DistributedObservableTest {
             // should fail
             recv.toObservable(vertx).
               doOnError(e -> {
-                if(e instanceof Throwable) {
-                  async.complete();
-                } else {
-                  context.fail(e);
-                }
+                context.assertTrue(e instanceof Throwable);
+                async.complete();
               }).
               subscribe();
           }).
