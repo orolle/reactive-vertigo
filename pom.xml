@@ -17,6 +17,7 @@
       <artifactId>vertx-rx-java</artifactId>
       <version>3.3.3</version>
     </dependency>
+    <!--
     <dependency>
       <groupId>io.vertx</groupId>
       <artifactId>vertx-service-proxy</artifactId>
@@ -33,6 +34,7 @@
       <artifactId>smc-lib-java</artifactId>
       <version>6.4.0_rx_b1</version>
     </dependency>
+    -->
     
     <dependency>
       <groupId>io.vertx</groupId>
@@ -50,6 +52,7 @@
   
 
   <build>
+    
     <pluginManagement>
       <plugins>
         <plugin>
@@ -58,6 +61,7 @@
           <configuration>
             <source>1.8</source>
             <target>1.8</target>
+            <!--
             <annotationProcessors>
               <annotationProcessor>io.vertx.codegen.CodeGenProcessor</annotationProcessor>
             </annotationProcessors>
@@ -67,11 +71,13 @@
             <compilerArgs>
               <arg>-AoutputDirectory=${project.basedir}/src/main</arg>
             </compilerArgs>
+            -->
           </configuration>
         </plugin>
       </plugins>
     </pluginManagement>
     <plugins>
+      <!--
       <plugin>
         <groupId>com.github.orolle</groupId>
         <artifactId>smc-maven-plugin</artifactId>
@@ -90,6 +96,7 @@
           <rx>true</rx>
         </configuration>
       </plugin>
+      -->
       
       <plugin>
         <groupId>org.codehaus.mojo</groupId>

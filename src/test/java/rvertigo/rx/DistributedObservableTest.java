@@ -5,7 +5,7 @@
  */
 package rvertigo.rx;
 
-import io.vertx.core.eventbus.EventBus;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -28,7 +28,6 @@ public class DistributedObservableTest {
   Vertx vertx;
 
   public DistributedObservableTest() {
-    ColdObservableFSM cold = new ColdObservableFSM(null);
   }
 
   @BeforeClass
@@ -53,25 +52,24 @@ public class DistributedObservableTest {
   public void writeAndReadObservable(TestContext context) {
     Async async = context.async();
     
-    ((EventBus)vertx.eventBus().getDelegate()).registerDefaultCodec(DistributedObservable.class, new DistributedObservableCodec());
+    // ((EventBus)vertx.eventBus().getDelegate()).registerDefaultCodec(DistributedObservable.class, new DistributedObservableCodec());
 
     DistributedObservable send = DistributedObservable.toDistributable(Observable.just(1, 2, 3), vertx);
     
-    vertx.eventBus().<DistributedObservable>consumer("TEST").toObservable().
-      doOnNext(msg -> {
-        DistributedObservable recv = msg.body();
-        
+    vertx.eventBus().<JsonObject>consumer("TEST").toObservable().
+      map(msg -> new DistributedObservable(msg.body())).
+      doOnNext(recv -> {
         context.assertTrue(recv != send);
         context.assertEquals(recv, send);
         
         // Subscribe first time
-        // -> succeed
+        // should succeed
         recv.<Integer>toObservable(vertx).
           reduce(0, (r, a) -> r + a).
           doOnNext(r -> context.assertEquals(6, r)).
           doOnCompleted(() -> {
             // Subscribe second time
-            // -> fail
+            // should fail
             recv.toObservable(vertx).
               doOnError(e -> {
                 if(e instanceof Throwable) {
@@ -87,6 +85,6 @@ public class DistributedObservableTest {
       }).
       subscribe();
     
-    vertx.eventBus().send("TEST", send);
+    vertx.eventBus().send("TEST", send.toJsonObject());
   }
 }

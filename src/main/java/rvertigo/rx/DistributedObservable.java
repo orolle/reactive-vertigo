@@ -5,7 +5,6 @@
  */
 package rvertigo.rx;
 
-import io.vertx.codegen.annotations.DataObject;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.json.JsonObject;
 import io.vertx.rxjava.core.Vertx;
@@ -17,16 +16,14 @@ import java.util.concurrent.atomic.AtomicReference;
 import rx.Observable;
 import rx.Observer;
 import rx.subjects.BehaviorSubject;
-import rx.subjects.ReplaySubject;
 
 /**
  *
  * @author Oliver Rolle <oliver.rolle@the-urban-institute.de>
  */
-@DataObject(generateConverter = true)
 public class DistributedObservable {
 
-  protected String address;
+  public String address;
 
   public DistributedObservable() {
     this(UUID.randomUUID().toString());
@@ -37,11 +34,16 @@ public class DistributedObservable {
   }
 
   public DistributedObservable(JsonObject that) {
-    this(that.getString("dhtAddress", UUID.randomUUID().toString()));
+    this(that.getString("address", null));
   }
 
   public DistributedObservable(String dhtAddress) {
     this.address = dhtAddress;
+  }
+  
+  public JsonObject toJsonObject() {
+    return new JsonObject().
+      put("address", address);
   }
 
   public <T> Observable<T> toObservable(Vertx vertx) {
