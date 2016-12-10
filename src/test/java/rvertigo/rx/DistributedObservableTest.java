@@ -64,10 +64,24 @@ public class DistributedObservableTest {
         context.assertTrue(recv != send);
         context.assertEquals(recv, send);
         
+        // Subscribe first time
+        // -> succeed
         recv.<Integer>toObservable(vertx).
           reduce(0, (r, a) -> r + a).
           doOnNext(r -> context.assertEquals(6, r)).
-          doOnCompleted(async::complete).
+          doOnCompleted(() -> {
+            // Subscribe second time
+            // -> fail
+            recv.toObservable(vertx).
+              doOnError(e -> {
+                if(e instanceof Throwable) {
+                  async.complete();
+                } else {
+                  context.fail(e);
+                }
+              }).
+              subscribe();
+          }).
           doOnError(context::fail).
           subscribe();
       }).

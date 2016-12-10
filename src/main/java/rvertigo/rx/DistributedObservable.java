@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import rx.Observable;
 import rx.Observer;
+import rx.subjects.BehaviorSubject;
 import rx.subjects.ReplaySubject;
 
 /**
@@ -44,12 +45,19 @@ public class DistributedObservable {
   }
 
   public <T> Observable<T> toObservable(Vertx vertx) {
-    ReplaySubject<T> replay = ReplaySubject.create();
+    BehaviorSubject replay = BehaviorSubject.create();
     String consumerAddr = UUID.randomUUID().toString();
-    MessageConsumer<T> consumer = vertx.eventBus().consumer(consumerAddr);
+    AtomicReference<MessageConsumer<T>> consumer = new AtomicReference<>(vertx.eventBus().consumer(consumerAddr));
     AtomicLong currentId = new AtomicLong(0L);
+    
+    Runnable consumerClose = () -> {
+      if(consumer.get() != null) {
+        consumer.get().unregister();
+        consumer.set(null);
+      }
+    };
 
-    consumer.toObservable().
+    consumer.get().toObservable().
       doOnNext(msg -> {
         String type = msg.headers().get(MessageHeader.ACTION.name());
         if (MessageType.NEXT.name().equals(type)) {
@@ -102,7 +110,10 @@ public class DistributedObservable {
       doOnError(replay::onError).
       subscribe();
 
-    return replay;
+    return replay.
+      doOnCompleted(() -> consumerClose.run()).
+      doOnError(e -> consumerClose.run()).
+      cache();
   }
 
   public static DistributedObservable toDistributable(Observable<Object> in, Vertx vertx) {
