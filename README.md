@@ -7,7 +7,7 @@ as an argument and / or as a result of a micro service method-call to setup an O
 across vertx cluster nodes.
 
 ## Example
-Look into the tests of example-sub-project. Vertx 3.3.3 spawns sometimes logging errors, which are vertx internal 
+Look into the tests of example sub-project. Vertx 3.3.3 spawns sometimes logging errors, which are vertx internal 
 but do not influence the functionality of the micro-service-rx.
 
 ## Features
