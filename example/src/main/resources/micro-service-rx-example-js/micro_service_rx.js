@@ -19,7 +19,7 @@ var utils = require('vertx-js/util/utils');
 
 var io = Packages.io;
 var JsonObject = io.vertx.core.json.JsonObject;
-var JMicroServiceRx = micro.service.rx.example.MicroServiceRx;
+var JMicroServiceRx = microservicerx.example.MicroServiceRx;
 
 /**
 
