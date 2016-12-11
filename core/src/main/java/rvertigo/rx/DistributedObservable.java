@@ -45,6 +45,10 @@ public class DistributedObservable {
     return new JsonObject().
       put("address", address);
   }
+  
+  public static DistributedObservable fromJsonObject(JsonObject json) {
+    return new DistributedObservable(json);
+  }
 
   public <T> Observable<T> toObservable(Vertx vertx) {
     BehaviorSubject replay = BehaviorSubject.create();
@@ -118,7 +122,7 @@ public class DistributedObservable {
       cache();
   }
 
-  public static DistributedObservable toDistributable(Observable<Object> in, Vertx vertx) {
+  public static DistributedObservable toDistributable(Observable<? extends Object> in, Vertx vertx) {
     DistributedObservable result = new DistributedObservable();
 
     AtomicReference<MessageConsumer<String>> consumer = new AtomicReference<>(null);

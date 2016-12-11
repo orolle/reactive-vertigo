@@ -3,5 +3,18 @@
 .settings/
 .vertx/
 target/
+nbproject/
 
-/nbproject/
+core/.classpath
+core/.project
+core/.settings/
+core/.vertx/
+core/target/
+core/nbproject/
+
+example/.classpath
+example/.project
+example/.settings/
+example/.vertx/
+example/target/
+example/nbproject/
