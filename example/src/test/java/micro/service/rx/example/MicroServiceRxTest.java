@@ -50,47 +50,87 @@ public class MicroServiceRxTest {
   }
 
   @Test
-  public void testMicroServiceRx(TestContext context) {
+  public void testMicroServiceRxColdObservable(TestContext context) {
     Async async = context.async();
-    
+
     vertx.deployVerticleObservable(MicroServiceRxVerticle.class.getCanonicalName()).
       doOnNext(id -> {
         MicroServiceRx proxy = new MicroServiceRxVertxEBProxy((io.vertx.core.Vertx) vertx.getDelegate(), MicroServiceRx.ADDRESS_DEFAULT);
         micro.service.rx.example.rxjava.MicroServiceRx proxy_rx = micro.service.rx.example.rxjava.MicroServiceRx.newInstance(proxy);
-        
-        proxy_rx.processObservable(new JsonObject().put("name", "Hello rx-fied micro service")).
+
+        proxy_rx.coldObservable(new JsonObject().put("name", "Hello rx-fied micro service")).
           map(json -> new DistributedObservable(json)).
           flatMap(dist -> dist.<JsonObject>toObservable(vertx)).
           doOnNext(System.out::println).
           doOnNext(json -> context.assertTrue(json.getBoolean("approved", false))).
           doOnCompleted(async::complete).
           doOnError(context::fail).
-          subscribe()
-          ;
-        
+          subscribe();
+
       }).
       subscribe();
   }
-  
+
   @Test
-  public void testMicroServiceRxFailure(TestContext context) {
+  public void testMicroServiceRxColdObservableFailure(TestContext context) {
     Async async = context.async();
-    
+
     vertx.deployVerticleObservable(MicroServiceRxVerticle.class.getCanonicalName()).
       doOnNext(id -> {
         MicroServiceRx proxy = new MicroServiceRxVertxEBProxy((io.vertx.core.Vertx) vertx.getDelegate(), MicroServiceRx.ADDRESS_DEFAULT);
         micro.service.rx.example.rxjava.MicroServiceRx proxy_rx = micro.service.rx.example.rxjava.MicroServiceRx.newInstance(proxy);
-        
-        proxy_rx.processObservable(new JsonObject().put("name", "bad")).
+
+        proxy_rx.coldObservable(new JsonObject().put("name", "bad")).
           map(json -> new DistributedObservable(json)).
           flatMap(dist -> dist.<JsonObject>toObservable(vertx)).
           doOnNext(next -> context.fail("doOnNext() should not be called!")).
           doOnError(e -> context.assertTrue(e instanceof Throwable)).
-          doOnError(e -> vertx.undeploy(id)).
           doOnError(e -> async.complete()).
-          subscribe()
-          ;
-        
+          subscribe();
+
+      }).
+      subscribe();
+  }
+
+  @Test
+  public void testMicroServiceRxHotObservable(TestContext context) {
+    Async async = context.async();
+
+    vertx.deployVerticleObservable(MicroServiceRxVerticle.class.getCanonicalName()).
+      doOnNext(id -> {
+        MicroServiceRx proxy = new MicroServiceRxVertxEBProxy((io.vertx.core.Vertx) vertx.getDelegate(), MicroServiceRx.ADDRESS_DEFAULT);
+        micro.service.rx.example.rxjava.MicroServiceRx proxy_rx = micro.service.rx.example.rxjava.MicroServiceRx.newInstance(proxy);
+
+        proxy_rx.hotObservable(new JsonObject().put("name", "Hello rx-fied micro service")).
+          map(json -> new DistributedObservable(json)).
+          flatMap(dist -> dist.<JsonObject>toObservable(vertx)).
+          doOnNext(System.out::println).
+          doOnNext(json -> context.assertTrue(json.getBoolean("approved", false))).
+          doOnCompleted(async::complete).
+          doOnError(context::fail).
+          subscribe();
+
+      }).
+      subscribe();
+  }
+
+  @Test
+  public void testMicroServiceRxHotObservableFailure(TestContext context) {
+    Async async = context.async();
+
+    vertx.deployVerticleObservable(MicroServiceRxVerticle.class.getCanonicalName()).
+      doOnNext(id -> {
+        MicroServiceRx proxy = new MicroServiceRxVertxEBProxy((io.vertx.core.Vertx) vertx.getDelegate(), MicroServiceRx.ADDRESS_DEFAULT);
+        micro.service.rx.example.rxjava.MicroServiceRx proxy_rx = micro.service.rx.example.rxjava.MicroServiceRx.newInstance(proxy);
+
+        proxy_rx.hotObservable(new JsonObject().put("name", "bad")).
+          map(json -> new DistributedObservable(json)).
+          flatMap(dist -> dist.<JsonObject>toObservable(vertx)).
+          doOnNext(next -> context.fail("doOnNext() should not be called!")).
+          doOnError(e -> context.assertTrue(e instanceof Throwable)).
+          doOnError(e -> async.complete()).
+          subscribe();
+
       }).
       subscribe();
   }

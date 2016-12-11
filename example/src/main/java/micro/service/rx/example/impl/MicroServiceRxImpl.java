@@ -14,6 +14,7 @@ import io.vertx.serviceproxy.ServiceException;
 import micro.service.rx.example.MicroServiceRx;
 import rvertigo.rx.DistributedObservable;
 import rx.Observable;
+import rx.subjects.BehaviorSubject;
 
 /**
  *
@@ -32,7 +33,7 @@ public class MicroServiceRxImpl implements MicroServiceRx {
   }
 
   @Override
-  public void process(JsonObject document, Handler<AsyncResult<JsonObject>> resultHandler) {
+  public void cold(JsonObject document, Handler<AsyncResult<JsonObject>> resultHandler) {
     System.out.println("Processing...");
     Observable<JsonObject> observable;
 
@@ -46,6 +47,31 @@ public class MicroServiceRxImpl implements MicroServiceRx {
       observable = Observable.just(result.copy().put("id", 0), result.copy().put("id", 1));
     }
     DistributedObservable dist = DistributedObservable.toDistributable(observable.map(j -> (Object) j), vertx);
+    resultHandler.handle(Future.succeededFuture(dist.toJsonObject()));
+  }
+
+  @Override
+  public void hot(JsonObject document, Handler<AsyncResult<JsonObject>> resultHandler) {
+    System.out.println("Processing...");
+    BehaviorSubject<Object> subject = BehaviorSubject.create();
+
+    JsonObject result = document.copy();
+    if (!document.containsKey("name")) {
+      subject.onError(new ServiceException(NO_NAME_ERROR, "No name in the document"));
+    } else if (document.getString("name").isEmpty() || document.getString("name").equalsIgnoreCase("bad")) {
+      subject.onError(new ServiceException(BAD_NAME_ERROR, "Bad name in the document"));
+    } else {
+      Long timerId = vertx.setPeriodic(1000, l -> {
+        JsonObject event = result.copy().put("approved", true).put("now", System.currentTimeMillis());
+        subject.onNext(event);
+      });
+      
+      vertx.setTimer(3*1000, l -> {
+        vertx.cancelTimer(timerId);
+        subject.onCompleted();
+      });
+    }
+    DistributedObservable dist = DistributedObservable.toDistributable(subject, vertx);
     resultHandler.handle(Future.succeededFuture(dist.toJsonObject()));
   }
 }

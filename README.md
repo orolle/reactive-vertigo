@@ -1,5 +1,5 @@
-# reactive-vertigo
-scale-rx is a prototype to test a new architecture to provide application level scaling.
+# micro-service-rx
+micro-service-rx provide observables to vertx's micro services.
 
 scale-rx is a framework for distributed reactive applications written with rxjava and vert.x in Java 8 for the JVM.
 It provides core functions to use DHT-based scaling in your applications.

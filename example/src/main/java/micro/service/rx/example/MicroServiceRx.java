@@ -24,5 +24,7 @@ public interface MicroServiceRx {
   int NO_NAME_ERROR = 2;
   int BAD_NAME_ERROR = 3;
 
-  void process(JsonObject document, Handler<AsyncResult<JsonObject>> resultHandler);
+  void cold(JsonObject document, Handler<AsyncResult<JsonObject>> resultHandler);
+  
+  void hot(JsonObject document, Handler<AsyncResult<JsonObject>> resultHandler);
 }
